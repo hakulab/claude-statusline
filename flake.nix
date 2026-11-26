@@ -35,6 +35,7 @@
     }:
     let
       inherit (nixpkgs) lib;
+      inherit (import ./flake.nix) description;
 
       runtimeInputs =
         pkgs:
@@ -55,7 +56,7 @@
           src = ./src;
           runtimeInputs = runtimeInputs pkgs;
           meta = {
-            description = "Modular, non-blocking Claude Code statusline with pluggable cost providers";
+            inherit description;
             homepage = "https://github.com/hakulab/claude-statusline";
             license = lib.licenses.mit;
             platforms = lib.platforms.all;

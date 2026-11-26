@@ -37,7 +37,7 @@ in
                 enable = true;
                 settings = {
                   defaults.cache_ttl = "30s";
-                  models."claude-opus-4-6" = "Opus 4.6";
+                  models."claude-opus-5-5" = "Opus 5.5";
                 };
               };
             };
