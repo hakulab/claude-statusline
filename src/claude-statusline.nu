@@ -14,14 +14,34 @@ use ./providers/ccusage.nu [CCUSAGE_SPEC DAILY_SPEC current-ccusage]
 use ./providers/command.nu [fetch-command]
 use ./providers/common.nu [source-cache-spec]
 use ./providers/http.nu [auth-ready fetch-http]
-use ./segments/basic.nu [format-dir format-mode format-time]
+use ./segments/basic.nu [format-dir format-mode format-time input-cwd]
 use ./segments/context.nu [format-context]
 use ./segments/cost.nu [format-block format-session format-today]
 use ./segments/git.nu [format-git-info]
 use ./segments/model.nu [format-model]
 
 const SCRIPT_PATH = path self
-const DEFAULT_CACHE_DIR = $nu.cache-dir | path join "claude-statusline"
+
+def default-cache-dir []: nothing -> path {
+  let home = ($env.HOME? | default --empty $nu.home-dir)
+  let cache_home = ($env.XDG_CACHE_HOME? | default --empty ($home | path join ".cache"))
+  $cache_home | path join "claude-statusline"
+}
+
+def read-input []: nothing -> record {
+  # `open /dev/stdin` re-opens fd 0 by path, which fails with ENXIO when the caller passes a
+  # socket, as Claude Code's spawn does.
+  let raw = (^cat | str trim)
+  if ($raw | is-empty) {
+    return {}
+  }
+  let parsed = (try { $raw | from json } catch { {} })
+  if ($parsed | describe | str starts-with "record") {
+    $parsed
+  } else {
+    {}
+  }
+}
 
 def refresh-source [source_id: string, cache_dir: path, config: record]: nothing -> nothing {
   let entry = ($config.cost_sources | where id == $source_id | get -o 0)
@@ -111,26 +131,29 @@ def render-segment [
 # Render a configurable Claude Code status line from JSON on stdin.
 def main [
   --config: string = "" # Path to TOML or JSON configuration file
-  --cache-dir: path = $DEFAULT_CACHE_DIR # Shared cache directory for concurrent status lines
+  --cache-dir: string = "" # Cache directory (default: $XDG_CACHE_HOME/claude-statusline)
   --refresh: string = "" # Refresh target to write and exit: ccusage, ccusage-daily, or source:<id>
   --sync-refresh # Wait for cache refreshes to complete before exiting
 ] {
+  let effective_cache_dir = if ($cache_dir | is-not-empty) {
+    $cache_dir
+  } else {
+    default-cache-dir
+  }
   let config_data = (load-config $config)
   if ($refresh | is-not-empty) {
-    refresh-target $refresh $cache_dir $config_data
+    refresh-target $refresh $effective_cache_dir $config_data
     return
   }
 
-  # `open /dev/stdin` re-opens fd 0 by path, which fails with ENXIO when the caller passes a
-  # socket, as Claude Code's spawn does.
-  let input = (^cat | from json)
+  let input = (read-input)
   let active_segments = ($config_data.layout.rows | flatten | uniq)
   let needs_git = ("git" in $active_segments)
   let needs_block = ("block" in $active_segments)
   let needs_today = ("today" in $active_segments)
   let needs_cost = ($needs_block or $needs_today)
 
-  let cwd = ($input.workspace?.current_dir? | default "")
+  let cwd = (input-cwd $input)
   let git_info = if $needs_git { format-git-info $cwd } else { "" }
 
   let matched = if $needs_cost { active-cost-sources $config_data $env } else { [] }
@@ -140,7 +163,7 @@ def main [
     let spec = if $show_block { $CCUSAGE_SPEC } else { $DAILY_SPEC }
     (
       read-cached
-        $cache_dir
+        $effective_cache_dir
         $spec
         $SCRIPT_PATH
         $config
@@ -159,7 +182,7 @@ def main [
       let spec = (source-cache-spec $entry.id)
       (
         read-cached
-          $cache_dir
+          $effective_cache_dir
           $spec
           $SCRIPT_PATH
           $config

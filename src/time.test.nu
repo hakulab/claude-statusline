@@ -31,11 +31,17 @@ def "test parse-duration accepts native durations and numeric seconds" [] {
   assert equal (parse-duration 1.5 10sec) 1500ms
 }
 
-def "test parse-duration falls back on null, invalid strings, and other types" [] {
+def "test parse-duration falls back on null, non-positive, invalid strings, and other types" [] {
   assert equal (parse-duration null 10sec) 10sec
   assert equal (parse-duration "invalid" 10sec) 10sec
   assert equal (parse-duration "" 10sec) 10sec
   assert equal (parse-duration [10] 10sec) 10sec
+  assert equal (parse-duration 0 10sec) 10sec
+  assert equal (parse-duration (-5) 10sec) 10sec
+  assert equal (parse-duration "0s" 10sec) 10sec
+  assert equal (parse-duration "-10s" 10sec) 10sec
+  assert equal (parse-duration 0sec 10sec) 10sec
+  assert equal (parse-duration (-5sec) 10sec) 10sec
 }
 
 def "test duration-seconds rounds and clamps to at least one second" [] {

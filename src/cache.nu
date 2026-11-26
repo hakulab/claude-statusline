@@ -3,8 +3,7 @@
 # ==================================================================================================
 
 def modified-time [path: path]: nothing -> datetime {
-  let expanded = ($path | path expand)
-  ls ($expanded | path dirname) | where name == $expanded | get 0.modified
+  ls $path | get 0.modified
 }
 
 export def cache-valid [cached: any, fields: list<string>]: nothing -> bool {
@@ -49,7 +48,7 @@ export def write-cache [cache: path, data: record]: nothing -> nothing {
     error make {msg: "failed to write usage cache"}
   }
 
-  let moved = (^mv --force $tmp $cache | complete)
+  let moved = (^mv -f $tmp $cache | complete)
   if $moved.exit_code != 0 {
     ^rm -f $tmp | complete | ignore
     error make {msg: "failed to publish usage cache"}

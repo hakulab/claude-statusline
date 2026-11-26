@@ -38,15 +38,13 @@
       inherit (import ./flake.nix) description;
 
       runtimeInputs =
-        pkgs:
-        (with pkgs; [
-          bash
+        pkgs: with pkgs; [
+          bashNonInteractive
           coreutils
           curl
           flock
           git
-        ])
-        ++ lib.optional (pkgs ? ccusage) pkgs.ccusage;
+        ];
 
       mkClaudeStatusline =
         pkgs:

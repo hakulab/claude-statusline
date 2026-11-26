@@ -59,9 +59,10 @@ export def work-counts [
   entries: list<string>
 ]: nothing -> record<staged: int, modified: int, untracked: int> {
   let codes = ($entries | each { str substring 0..<2 })
+  let tracked = ($codes | where $it != "??" and $it != "!!")
   {
-    staged: ($codes | where ($it | str substring 0..<1) in ["M" "A"] | length)
-    modified: ($codes | where $it == " M" | length)
+    staged: ($tracked | where ($it | str substring 0..<1) in ["M" "A" "D" "R" "C"] | length)
+    modified: ($tracked | where ($it | str substring 1..<2) in ["M" "D" "T"] | length)
     untracked: ($codes | where $it == "??" | length)
   }
 }

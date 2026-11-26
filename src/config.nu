@@ -15,10 +15,8 @@ const DEFAULT_ROW0_SEPARATOR = " "
 const DEFAULT_SEPARATOR = " | "
 
 export def default-config-path []: nothing -> path {
-  let config_home = (
-    $env.XDG_CONFIG_HOME?
-    | default (($env.HOME? | default $nu.home-dir) | path join ".config")
-  )
+  let home = ($env.HOME? | default --empty $nu.home-dir)
+  let config_home = ($env.XDG_CONFIG_HOME? | default --empty ($home | path join ".config"))
   $config_home | path join "claude-statusline/config.toml"
 }
 

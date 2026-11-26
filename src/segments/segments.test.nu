@@ -15,11 +15,13 @@ use ./model.nu [format-model model-name]
 # Directory Segment
 # --------------------------------------------------------------------------------------------------
 
-def "test format-dir renders basename, home tilde, and omits empty cwd" [] {
+def "test format-dir renders basename, home tilde, root, cwd fallback, and omits empty cwd" [] {
   assert equal (format-dir {workspace: {current_dir: "/tmp/my-project"}} "/home/user" | ansi strip) (
     "my-project"
   )
   assert equal (format-dir {workspace: {current_dir: "/home/user"}} "/home/user" | ansi strip) "~"
+  assert equal (format-dir {workspace: {current_dir: "/"}} "/home/user" | ansi strip) "/"
+  assert equal (format-dir {cwd: "/tmp/fallback"} "/home/user" | ansi strip) "fallback"
   assert equal (format-dir {} "/home/user") ""
 }
 
@@ -54,13 +56,21 @@ def "test work-counts tallies staged, modified, and untracked entries" [] {
   let entries = [
     "M  src/main.nu"
     "A  src/new.nu"
+    "D  src/deleted.nu"
+    "R  src/old.nu -> src/renamed.nu"
+    "C  src/copy.nu"
+    "MM src/both.nu"
+    "AM src/added-then-edited.nu"
     " M README.md"
+    " D removed-worktree.txt"
+    " T symlink.txt"
     "?? scratch.txt"
     "?? notes.txt"
+    "!! ignored.log"
   ]
   assert equal (work-counts $entries) {
-    staged: 2
-    modified: 1
+    staged: 7
+    modified: 5
     untracked: 2
   }
 }
@@ -78,7 +88,9 @@ def "test format-git-info renders clean repo, dirty marks, and omits non-git dir
   ^git -C $repo add tracked.txt | complete | ignore
   ^git -C $repo commit -m "init" | complete | ignore
 
-  assert equal (format-git-info $repo | ansi strip) "main"
+  let clean = (format-git-info $repo)
+  assert equal ($clean | ansi strip) "main"
+  assert not ($clean | str contains (ansi yellow))
 
   "changed\n" | save --force ($repo | path join "tracked.txt")
   "staged\n" | save ($repo | path join "staged.txt")

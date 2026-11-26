@@ -8,35 +8,39 @@ export def parse-duration [value: any, fallback: duration]: nothing -> duration 
     return $fallback
   }
   let kind = ($value | describe)
-  if $kind == "duration" {
-    return $value
-  }
-  if $kind == "int" or $kind == "float" {
-    return (try {
+  let parsed = if $kind == "duration" {
+    $value
+  } else if $kind == "int" or $kind == "float" {
+    try {
       $"($value)sec" | into duration
     } catch {
       $fallback
-    })
-  }
-  if $kind != "string" {
-    return $fallback
-  }
-
-  let trimmed = ($value | str trim)
-  if ($trimmed | is-empty) {
-    return $fallback
-  }
-
-  let normalized = (
-    $trimmed
-    | str replace --regex '(\d+)s$' '${1}sec'
-    | str replace --regex '(\d+)m$' '${1}min'
-    | str replace --regex '(\d+)h$' '${1}hr'
-  )
-  try {
-    $normalized | into duration
-  } catch {
+    }
+  } else if $kind == "string" {
+    let trimmed = ($value | str trim)
+    if ($trimmed | is-empty) {
+      $fallback
+    } else {
+      let normalized = (
+        $trimmed
+        | str replace --regex '(\d+)s$' '${1}sec'
+        | str replace --regex '(\d+)m$' '${1}min'
+        | str replace --regex '(\d+)h$' '${1}hr'
+      )
+      try {
+        $normalized | into duration
+      } catch {
+        $fallback
+      }
+    }
+  } else {
     $fallback
+  }
+
+  if $parsed <= 0ns {
+    $fallback
+  } else {
+    $parsed
   }
 }
 

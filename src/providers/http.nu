@@ -133,7 +133,6 @@ export def fetch-http [
       --fail
       --silent
       --show-error
-      --location
       --connect-timeout $timeout_secs
       --max-time $timeout_secs
       ...$method_args

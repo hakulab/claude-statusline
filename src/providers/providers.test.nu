@@ -61,11 +61,15 @@ def "test parse-json-record accepts objects and rejects invalid or scalar JSON" 
   }
 }
 
-def "test extract-cost resolves nested floats and rejects missing or non-numeric fields" [] {
+def "test extract-cost resolves nested floats and rejects missing, bool, or non-finite fields" [] {
   let payload = {
     usage: {
       total_usd: 19.5
       label: "none"
+      flag: true
+      nan_val: "NaN"
+      inf_val: "inf"
+      neg_inf_val: "-inf"
     }
   }
   assert equal (extract-cost $payload ["usage" "total_usd"] "probe") 19.5
@@ -76,8 +80,10 @@ def "test extract-cost resolves nested floats and rejects missing or non-numeric
   let missing_err = try { extract-cost $payload ["usage" "missing"] "probe"; "" } catch {|e| $e.msg }
   assert equal $missing_err "probe response missing usage.missing"
 
-  let type_err = try { extract-cost $payload ["usage" "label"] "probe"; "" } catch {|e| $e.msg }
-  assert equal $type_err "probe usage.label is not numeric"
+  for field in ["label" "flag" "nan_val" "inf_val" "neg_inf_val"] {
+    let type_err = try { extract-cost $payload ["usage" $field] "probe"; "" } catch {|e| $e.msg }
+    assert equal $type_err $"probe usage.($field) is not numeric"
+  }
 }
 
 # --------------------------------------------------------------------------------------------------
@@ -221,6 +227,7 @@ def "test fetch-http builds curl args for bearer-file, header-file, and bearer-e
   assert equal $res.daily_cost 198.11
 
   let first_args = (read-calls $log | get 0.args)
+  assert ("--location" not-in $first_args)
   assert ("--noproxy" in $first_args)
   assert ("--cacert" in $first_args)
   assert ("Accept: application/json" in $first_args)
@@ -349,9 +356,11 @@ def "test fetch-command reports empty argv, nonzero exit, and non-numeric stdout
   } catch {|e| $e.msg }
   assert equal $exit_err "cmd command exited 3"
 
-  let num_err = try {
-    fetch-command {argv: ["bash" "-c" 'printf "not-a-number\n"']} 5sec "cmd"
-    ""
-  } catch {|e| $e.msg }
-  assert equal $num_err "cmd stdout is not numeric"
+  for bad in ["not-a-number" "NaN" "inf" "-inf"] {
+    let num_err = try {
+      fetch-command {argv: ["bash" "-c" 'printf "%s\n" "$1"' "_" $bad]} 5sec "cmd"
+      ""
+    } catch {|e| $e.msg }
+    assert equal $num_err "cmd stdout is not numeric"
+  }
 }

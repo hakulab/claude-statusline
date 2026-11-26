@@ -22,31 +22,47 @@ in
   # ------------------------------------------------------------------------------------------------
   home-module =
     let
-      eval = lib.evalModules {
-        class = "homeManager";
-        modules = [
-          self.homeModules.default
-          {
-            options = {
-              home.packages = lib.mkOption { type = lib.types.anything; };
-              xdg.configFile = lib.mkOption { type = lib.types.anything; };
-            };
-            config = {
-              _module.args.pkgs = canaryPkgs;
-              programs.claude-statusline = {
-                enable = true;
-                settings = {
-                  defaults.cache_ttl = "30s";
-                  models."claude-opus-5-5" = "Opus 5.5";
+      evalModule =
+        settings:
+        lib.evalModules {
+          class = "homeManager";
+          modules = [
+            self.homeModules.default
+            {
+              options = {
+                home.packages = lib.mkOption { type = lib.types.anything; };
+                xdg.configFile = lib.mkOption {
+                  type = lib.types.anything;
+                  default = { };
                 };
               };
-            };
-          }
-        ];
+              config = {
+                _module.args.pkgs = canaryPkgs;
+                programs.claude-statusline = {
+                  enable = true;
+                  inherit settings;
+                };
+              };
+            }
+          ];
+        };
+
+      emptyEval = evalModule { };
+      configuredEval = evalModule {
+        defaults.cache_ttl = "30s";
+        models."claude-opus-5-5" = "Opus 5.5";
       };
-      installed = map drvPath eval.config.home.packages;
-      configFile = eval.config.xdg.configFile."claude-statusline/config.toml".source;
+
+      emptyInstalled = map drvPath emptyEval.config.home.packages;
+      installed = map drvPath configuredEval.config.home.packages;
+      configFile = configuredEval.config.xdg.configFile."claude-statusline/config.toml".source;
     in
+    assert lib.assertMsg (
+      emptyInstalled == [ (drvPath claudeStatusline) ]
+    ) "Home Manager module with empty settings reconstructed the locked package";
+    assert lib.assertMsg (
+      !(emptyEval.config.xdg.configFile ? "claude-statusline/config.toml")
+    ) "Home Manager module generated config.toml when settings is empty";
     assert lib.assertMsg (
       installed == [ (drvPath claudeStatusline) ]
     ) "Home Manager module reconstructed the locked package";
@@ -89,8 +105,14 @@ in
   # ------------------------------------------------------------------------------------------------
   package = claudeStatusline;
 
-  tests = dk.nuTests {
-    src = ../.;
-    runtimeInputs = commonInputs;
-  };
+  tests =
+    (dk.nuTests {
+      src = ../.;
+      runtimeInputs = commonInputs;
+    }).overrideAttrs
+      (prev: {
+        env = (prev.env or { }) // {
+          TZDIR = "${pkgs.tzdata}/share/zoneinfo";
+        };
+      });
 }

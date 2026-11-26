@@ -4,20 +4,25 @@
 
 use ../format.nu [dim paint]
 
+export def input-cwd [input: record]: nothing -> string {
+  $input.workspace?.current_dir?
+  | default --empty ($input.cwd? | default "")
+}
+
 export def format-dir [input: record, home: string = ""]: nothing -> string {
-  let cwd = ($input.workspace?.current_dir? | default "")
+  let cwd = (input-cwd $input)
   if ($cwd | is-empty) {
     return ""
   }
   let effective_home = if ($home | is-not-empty) {
     $home
   } else {
-    $env.HOME? | default $nu.home-dir
+    $env.HOME? | default --empty $nu.home-dir
   }
   let label = if $cwd == $effective_home {
     "~"
   } else {
-    $cwd | path basename
+    $cwd | path basename | default --empty "/"
   }
   paint $label "blue_bold"
 }

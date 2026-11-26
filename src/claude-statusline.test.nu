@@ -720,6 +720,26 @@ def "test command cost source renders Today end-to-end" [] {
 # Detached Async Refresh
 # --------------------------------------------------------------------------------------------------
 
+def "test empty or minimal stdin renders cleanly without error" [] {
+  let dir = (mktemp --directory)
+  let config = ($dir | path join "config.toml")
+  "[layout]\nrows = [[\"dir\", \"git\"], [\"context\", \"time\"]]\n" | save --force --raw $config
+
+  for raw in ["" "{}" "not-json"] {
+    let run = (
+      $raw
+      | ^$nu.current-exe
+        --no-config-file
+        $SCRIPT
+        --config $config
+        --cache-dir ($dir | path join "cache")
+      | complete
+    )
+    assert equal $run.exit_code 0 $run.stderr
+    assert ($run.stdout | ansi strip | str contains "Ctx: 0%")
+  }
+}
+
 def "test detached background refresh returns stale cache without blocking" [] {
   let dir = (mktemp --directory)
   let today = (utc-today)

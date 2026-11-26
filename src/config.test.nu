@@ -8,6 +8,7 @@ use std/assert
 use ./config.nu [
   active-cost-sources
   default-config
+  default-config-path
   load-config
   row-separator
   should-show-block
@@ -17,6 +18,17 @@ use ./config.nu [
 # --------------------------------------------------------------------------------------------------
 # Defaults and Config Loading
 # --------------------------------------------------------------------------------------------------
+
+def "test default-config-path falls back when xdg config home is empty" [] {
+  let home = "/tmp/fake-home"
+  let resolved = with-env {
+    HOME: $home
+    XDG_CONFIG_HOME: ""
+  } {
+    default-config-path
+  }
+  assert equal $resolved ($home | path join ".config/claude-statusline/config.toml")
+}
 
 def "test load-config returns defaults when default path is absent" [] {
   let dir = (mktemp --directory)

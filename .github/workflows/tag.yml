@@ -11,10 +11,91 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  release:
+  tagged-ci:
+    name: Check Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
     permissions:
       actions: read
-      contents: write
-    uses: hakulab/devkit/.github/workflows/release.yml@v3
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Nix
+        uses: hakulab/devkit/.github/actions/setup-nix@v3
+
+      - name: Check the package version
+        run: |
+          version=$(nix eval --raw .#default.version)
+          if [[ "v$version" != "$GITHUB_REF_NAME" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the package version $version"
+            exit 1
+          fi
+
+      - name: Wait for CI on the tagged commit
+        uses: hakulab/devkit/.github/actions/tagged-ci@v3
+
+  nix-cache:
+    needs: tagged-ci
+    uses: hakulab/devkit/.github/workflows/nix-cache.yml@v3
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+  publish:
+    name: Publish GitHub Release
+    needs: nix-cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Build standalone release archive
+        run: |
+          set -euo pipefail
+          stage=$(mktemp -d)
+          trap 'rm -rf "$stage"' EXIT
+
+          mkdir -p "$stage/bin" "$stage/share/claude-statusline" dist
+          cp -r src/. "$stage/share/claude-statusline/"
+          find "$stage/share/claude-statusline" -type f \
+            \( -name '*.test.nu' -o -name '*.stub.nu' -o -name '*.testlib.nu' \) \
+            -delete
+          chmod 755 "$stage/share/claude-statusline/claude-statusline.nu"
+          cp LICENSE "$stage/LICENSE"
+
+          cat >"$stage/bin/claude-statusline" <<'EOF'
+          #!/bin/sh
+          set -eu
+          script=$0
+          while [ -L "$script" ]; do
+            dir=$(CDPATH= cd -- "$(dirname -- "$script")" && pwd)
+            target=$(readlink "$script")
+            case $target in
+              /*) script=$target ;;
+              *) script=$dir/$target ;;
+            esac
+          done
+          prefix=$(CDPATH= cd -- "$(dirname -- "$script")/.." && pwd)
+          exec nu --no-config-file "$prefix/share/claude-statusline/claude-statusline.nu" "$@"
+          EOF
+          chmod 755 "$stage/bin/claude-statusline"
+
+          tar -czf dist/claude-statusline.tar.gz -C "$stage" bin share LICENSE
+          (cd dist && sha256sum claude-statusline.tar.gz > claude-statusline.tar.gz.sha256)
+
+      - name: Publish release
+        uses: hakulab/devkit/.github/actions/publish-release@v3
+        with:
+          assets: |
+            dist/claude-statusline.tar.gz
+            dist/claude-statusline.tar.gz.sha256
