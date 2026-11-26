@@ -1,1 +1,0 @@
-../curl.stub.nu

@@ -15,19 +15,7 @@ Opus 5.5 (1M) high | Ctx: 42% (420k/1000k) | Block: $4.50 (2h5m left, $1.75/h) |
 - **Lazy execution**: only invokes `git`, `ccusage blocks`, or cost providers when the configured layout uses them.
 - **Customizable**: arrange built-in segments (`dir`, `git`, `model`, `context`, `session`, `mode`, `block`, `today`, `time`) across any number of rows, add model aliases, or plug in HTTP/command cost providers.
 
-## Installation
-
-### Standalone
-
-Download and extract the latest release archive into `~/.local` (ensure `~/.local/bin` is on your `PATH`):
-
-```bash
-mkdir -p ~/.local
-curl -fsSL https://github.com/hakulab/claude-statusline/releases/latest/download/claude-statusline.tar.gz \
-  | tar -xz -C ~/.local
-```
-
-Runtime requirements: `nu` (Nushell), `bash`, `curl`, `flock`, `git`, and optionally `ccusage` for block and daily usage tracking.
+## Install
 
 ### Nix
 
@@ -48,6 +36,17 @@ Add the flake input (`inputs.claude-statusline.url = "github:hakulab/claude-stat
 ```nix
 programs.claude-statusline.enable = true;
 ```
+
+### From source
+
+Outside Nix, clone the repository and run `src/claude-statusline.nu` directly with Nushell:
+
+```bash
+git clone https://github.com/hakulab/claude-statusline ~/.local/share/claude-statusline
+nu --no-config-file ~/.local/share/claude-statusline/src/claude-statusline.nu --help
+```
+
+Runtime requirements: `nu` (Nushell), `bash`, `curl`, `flock`, `git`, and optionally `ccusage` for block and daily usage tracking.
 
 ## Claude Code Setup
 

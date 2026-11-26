@@ -10,6 +10,16 @@ use ./command.nu [fetch-command]
 use ./common.nu [extract-cost non-empty-file parse-json-record source-cache-spec]
 use ./http.nu [auth-ready build-query-url fetch-http]
 
+const CCUSAGE_STUB = path self "../ccusage.stub.nu"
+const CURL_STUB = path self "../curl.stub.nu"
+
+def install-stub [src: path, dir: path, name: string]: nothing -> nothing {
+  let target = ($dir | path join $name)
+  let script = (open --raw $src | into string | str replace --regex '^#![^\r\n]*(\r?\n)?' "")
+  $"#!($nu.current-exe) --no-config-file\n($script)" | save --force $target
+  ^chmod +x $target
+}
+
 def read-calls [log: path]: nothing -> list<record> {
   if ($log | path exists) {
     open $log | from json --objects
@@ -92,12 +102,13 @@ def "test extract-cost resolves nested floats and rejects missing, bool, or non-
 
 def "test current-ccusage fetches daily only by default and adds blocks with flag" [] {
   let dir = (mktemp --directory)
+  install-stub $CCUSAGE_STUB $dir "ccusage"
   let log = ($dir | path join "ccusage.jsonl")
   let today = (date now | format date "%Y%m%d")
 
   let daily = with-env {
     CCUSAGE_MODE: "success"
-    PATH: ($env.PATH | prepend $env.NU_TEST_STUBS)
+    PATH: ($env.PATH | prepend $dir)
     STUB_LOG: $log
   } {
     current-ccusage
@@ -112,7 +123,7 @@ def "test current-ccusage fetches daily only by default and adds blocks with fla
   let full_log = ($dir | path join "ccusage-full.jsonl")
   let full = with-env {
     CCUSAGE_MODE: "success"
-    PATH: ($env.PATH | prepend $env.NU_TEST_STUBS)
+    PATH: ($env.PATH | prepend $dir)
     STUB_LOG: $full_log
   } {
     current-ccusage --with-blocks
@@ -131,11 +142,12 @@ def "test current-ccusage fetches daily only by default and adds blocks with fla
 
 def "test ccusage-json reports nonzero exit and scalar JSON errors" [] {
   let dir = (mktemp --directory)
+  install-stub $CCUSAGE_STUB $dir "ccusage"
   let log = ($dir | path join "ccusage.jsonl")
 
   let exit_err = with-env {
     CCUSAGE_MODE: "fail-blocks"
-    PATH: ($env.PATH | prepend $env.NU_TEST_STUBS)
+    PATH: ($env.PATH | prepend $dir)
     STUB_LOG: $log
   } {
     try { ccusage-json [blocks --active]; "" } catch {|e| $e.msg }
@@ -144,7 +156,7 @@ def "test ccusage-json reports nonzero exit and scalar JSON errors" [] {
 
   let scalar_err = with-env {
     CCUSAGE_MODE: "scalar-blocks"
-    PATH: ($env.PATH | prepend $env.NU_TEST_STUBS)
+    PATH: ($env.PATH | prepend $dir)
     STUB_LOG: $log
   } {
     try { ccusage-json [blocks --active]; "" } catch {|e| $e.msg }
@@ -199,6 +211,7 @@ def "test build-query-url renders templates and appends query strings" [] {
 
 def "test fetch-http builds curl args for bearer-file, header-file, and bearer-env auth" [] {
   let dir = (mktemp --directory)
+  install-stub $CURL_STUB $dir "curl"
   let token = ($dir | path join "token")
   "secret-token" | save --force --raw $token
   let ca = ($dir | path join "ca.crt")
@@ -208,7 +221,7 @@ def "test fetch-http builds curl args for bearer-file, header-file, and bearer-e
   let res = with-env {
     CURL_LOG: $log
     CURL_MODE: "success"
-    PATH: ($env.PATH | prepend $env.NU_TEST_STUBS)
+    PATH: ($env.PATH | prepend $dir)
   } {
     fetch-http {
       url: "https://billing.example.com/v1/usage"
@@ -238,7 +251,7 @@ def "test fetch-http builds curl args for bearer-file, header-file, and bearer-e
   with-env {
     CURL_LOG: $header_log
     CURL_MODE: "success"
-    PATH: ($env.PATH | prepend $env.NU_TEST_STUBS)
+    PATH: ($env.PATH | prepend $dir)
   } {
     fetch-http {
       url: "https://billing.example.com/v1/usage"
@@ -256,7 +269,7 @@ def "test fetch-http builds curl args for bearer-file, header-file, and bearer-e
   with-env {
     CURL_LOG: $env_log
     CURL_MODE: "success"
-    PATH: ($env.PATH | prepend $env.NU_TEST_STUBS)
+    PATH: ($env.PATH | prepend $dir)
   } {
     fetch-http {
       url: "https://billing.example.com/v1/usage"
@@ -274,6 +287,7 @@ def "test fetch-http builds curl args for bearer-file, header-file, and bearer-e
 
 def "test fetch-http reports missing url, missing token, and curl or payload errors" [] {
   let dir = (mktemp --directory)
+  install-stub $CURL_STUB $dir "curl"
   let log = ($dir | path join "curl.jsonl")
 
   let url_err = try { fetch-http {} 5sec {} "billing"; "" } catch {|e| $e.msg }
@@ -309,7 +323,7 @@ def "test fetch-http reports missing url, missing token, and curl or payload err
     let err = with-env {
       CURL_LOG: $log
       CURL_MODE: $case.mode
-      PATH: ($env.PATH | prepend $env.NU_TEST_STUBS)
+      PATH: ($env.PATH | prepend $dir)
     } {
       try {
         fetch-http {
