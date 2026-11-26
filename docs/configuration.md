@@ -2,6 +2,18 @@
 
 `claude-statusline` reads `${XDG_CONFIG_HOME:-~/.config}/claude-statusline/config.toml` by default, or any TOML/JSON file passed via `--config <path>`. Every section and key is optional; omitted keys fall back to the defaults below.
 
+When using the Home Manager module, pass any of these keys under `programs.claude-statusline.settings` to generate `config.toml` automatically:
+
+```nix
+programs.claude-statusline = {
+  enable = true;
+  settings = {
+    defaults.cache_ttl = "30s";
+    models."claude-opus-5-5" = "Opus 5.5";
+  };
+};
+```
+
 ## Sections
 
 ### `[defaults]`
@@ -122,7 +134,7 @@ Credentials are passed to `curl` via `--variable` and `--expand-header` so token
 
 #### `[cost_sources.source]` — Command (`type = "command"`)
 
-Runs an external command under `timeout` and reads a USD cost from stdout.
+Runs an external command under `timeout` (falling back to `gtimeout` on macOS) and reads a USD cost from stdout.
 
 | Key       | Type           | Default | Description                                                           |
 | --------- | -------------- | ------- | --------------------------------------------------------------------- |
