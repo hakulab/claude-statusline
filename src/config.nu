@@ -7,6 +7,12 @@ use ./time.nu [parse-duration]
 const DEFAULT_CACHE_TTL = 60sec
 const DEFAULT_MAX_STALE = 15min
 const DEFAULT_TIMEOUT = 5sec
+const DEFAULT_ROWS = [
+  ["dir" "git"]
+  ["model" "context" "block" "today" "time"]
+]
+const DEFAULT_ROW0_SEPARATOR = " "
+const DEFAULT_SEPARATOR = " | "
 
 export def default-config-path []: nothing -> path {
   let config_home = (
@@ -23,6 +29,11 @@ export def default-config []: nothing -> record {
       max_stale: $DEFAULT_MAX_STALE
       timeout: $DEFAULT_TIMEOUT
     }
+    layout: {
+      rows: $DEFAULT_ROWS
+      separator: $DEFAULT_SEPARATOR
+      separators: []
+    }
     local: {
       provider: "ccusage"
       show_block: true
@@ -37,6 +48,14 @@ def normalize-defaults [raw: record]: nothing -> record {
     cache_ttl: (parse-duration ($raw.cache_ttl?) $DEFAULT_CACHE_TTL)
     max_stale: (parse-duration ($raw.max_stale?) $DEFAULT_MAX_STALE)
     timeout: (parse-duration ($raw.timeout?) $DEFAULT_TIMEOUT)
+  }
+}
+
+def normalize-layout [raw: record]: nothing -> record {
+  {
+    rows: ($raw.rows? | default $DEFAULT_ROWS)
+    separator: ($raw.separator? | default $DEFAULT_SEPARATOR)
+    separators: ($raw.separators? | default [])
   }
 }
 
@@ -90,9 +109,21 @@ export def load-config [config_path: string = ""]: nothing -> record {
 
   {
     defaults: $defaults
+    layout: (normalize-layout ($raw.layout? | default {}))
     local: (normalize-local ($raw.local? | default {}))
     models: ($raw.models? | default {})
     cost_sources: $sources
+  }
+}
+
+export def row-separator [layout: record, index: int]: nothing -> string {
+  let override = ($layout.separators | get -o $index)
+  if $override != null {
+    $override
+  } else if $index == 0 {
+    $DEFAULT_ROW0_SEPARATOR
+  } else {
+    $layout.separator
   }
 }
 

@@ -67,6 +67,9 @@ export def work-counts [
 }
 
 export def format-git-info [cwd: string]: nothing -> string {
+  if ($cwd | is-empty) {
+    return ""
+  }
   let output = (git-status $cwd)
   let branch = (parse-branch ($output | first | default ""))
   if ($branch.branch | is-empty) {
@@ -88,5 +91,9 @@ export def format-git-info [cwd: string]: nothing -> string {
     | str join
   )
 
-  $" (paint $branch.branch "green")(paint $marks "yellow") "
+  if ($marks | is-empty) {
+    paint $branch.branch "green"
+  } else {
+    $"(paint $branch.branch "green")(paint $marks "yellow")"
+  }
 }

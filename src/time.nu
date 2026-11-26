@@ -22,9 +22,13 @@ export def parse-duration [value: any, fallback: duration]: nothing -> duration 
     return $fallback
   }
 
+  let trimmed = ($value | str trim)
+  if ($trimmed | is-empty) {
+    return $fallback
+  }
+
   let normalized = (
-    $value
-    | str trim
+    $trimmed
     | str replace --regex '(\d+)s$' '${1}sec'
     | str replace --regex '(\d+)m$' '${1}min'
     | str replace --regex '(\d+)h$' '${1}hr'

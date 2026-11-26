@@ -2,6 +2,8 @@
 # Model Name Segment
 # ==================================================================================================
 
+use ../format.nu [paint]
+
 export def model-name [input: record, models: record]: nothing -> string {
   let id = ($input.model?.id? | default "")
   let model_id = ($id | str replace --regex '(?i)\[1m\]$' "")
@@ -27,4 +29,13 @@ export def model-name [input: record, models: record]: nothing -> string {
   ]
   | compact --empty
   | str join " "
+}
+
+export def format-model [input: record, models: record]: nothing -> string {
+  let name = (model-name $input $models)
+  if ($name | is-empty) {
+    ""
+  } else {
+    paint $name "cyan"
+  }
 }

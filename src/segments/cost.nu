@@ -40,6 +40,19 @@ export def format-block [data: record]: nothing -> string {
   $"(labeled "Block" (usd ($data.block_cost? | default 0.0)) "cyan")($suffix)"
 }
 
+export def format-session [input: record]: nothing -> string {
+  let raw = $input.cost?.total_cost_usd?
+  if $raw == null {
+    return ""
+  }
+  let amount = (try { $raw | into float } catch { null })
+  if $amount == null {
+    ""
+  } else {
+    labeled "Sess" (usd $amount) "cyan"
+  }
+}
+
 export def format-today [local: record, remotes: list<record>]: nothing -> string {
   let local_value = if ($local.has_daily? | default false) {
     usd ($local.daily_cost? | default 0.0)
