@@ -84,10 +84,7 @@ const DEFAULT_PRESET = "catppuccin-mocha"
 
 const PRESETS = {
   catppuccin-mocha: {
-    accent: {
-      fg: "#89b4fa"
-      bold: true
-    }
+    accent: {fg: "#89b4fa", bold: true}
     info: {fg: "#94e2d5"}
     success: {fg: "#a6e3a1"}
     warning: {fg: "#f9e2af"}
@@ -97,10 +94,7 @@ const PRESETS = {
     separator: {fg: "#585b70"}
   }
   catppuccin-latte: {
-    accent: {
-      fg: "#1e66f5"
-      bold: true
-    }
+    accent: {fg: "#1e66f5", bold: true}
     info: {fg: "#179299"}
     success: {fg: "#40a02b"}
     warning: {fg: "#df8e1d"}
@@ -110,10 +104,7 @@ const PRESETS = {
     separator: {fg: "#acb0be"}
   }
   ansi: {
-    accent: {
-      fg: "blue"
-      bold: true
-    }
+    accent: {fg: "blue", bold: true}
     info: {fg: "cyan"}
     success: {fg: "green"}
     warning: {fg: "yellow"}
@@ -127,10 +118,7 @@ const PRESETS = {
     info: {}
     success: {}
     warning: {italic: true}
-    error: {
-      bold: true
-      underlined: true
-    }
+    error: {bold: true, underlined: true}
     mode: {bold: true}
     muted: {dim: true}
     separator: {dim: true}
