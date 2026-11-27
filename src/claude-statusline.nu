@@ -171,13 +171,11 @@ def main [
   let needs_git = ("git" in $active_segments)
   let needs_block = ("block" in $active_segments)
   let needs_today = ("today" in $active_segments)
-  let needs_cost = ($needs_block or $needs_today)
 
   let cwd = (input-cwd $input)
   let git_info = if $needs_git { format-git-info $cwd --theme $theme } else { "" }
 
-  let matched = if $needs_cost { active-cost-sources $config_data $env } else { [] }
-  let show_block = ($needs_block and (should-show-block $matched))
+  let show_block = ($needs_block and (should-show-block $env))
 
   let local_usage = if $config_data.local.provider == "ccusage" and ($show_block or $needs_today) {
     let spec = if $show_block { $CCUSAGE_SPEC } else { $DAILY_SPEC }
@@ -196,7 +194,7 @@ def main [
   }
 
   let remote_usages = if $needs_today {
-    $matched
+    active-cost-sources $config_data $env
     | where {|entry| source-ready $entry $env }
     | each {|entry|
       let spec = (source-cache-spec $entry.id)
@@ -206,8 +204,8 @@ def main [
           $spec
           $SCRIPT_PATH
           $config
-          $entry.behavior.cache_ttl
-          $entry.behavior.max_stale
+          $config_data.defaults.cache_ttl
+          $config_data.defaults.max_stale
           --sync-refresh=$sync_refresh
       )
     }
