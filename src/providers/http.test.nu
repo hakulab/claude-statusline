@@ -17,35 +17,85 @@ def "test auth-ready validates none, file, env, and unknown auth configs" [] {
   let blank = ($dir | path join "blank")
   "  \n" | save --force --raw $blank
 
-  assert (auth-ready {} {})
-  assert (auth-ready {type: "none"} {})
-  assert (auth-ready {
-    type: "bearer_file"
-    path: $token
-  } {})
-  assert not (auth-ready {
-    type: "bearer_file"
-    path: $blank
-  } {})
-  assert (auth-ready {
-    type: "header_file"
-    header: "X-API-Key"
-    path: $token
-  } {})
-  assert not (auth-ready {
-    type: "header_file"
-    header: ""
-    path: $token
-  } {})
-  assert (auth-ready {
-    type: "bearer_env"
-    env: "API_TOK"
-  } {API_TOK: "secret"})
-  assert not (auth-ready {
-    type: "bearer_env"
-    env: "API_TOK"
-  } {API_TOK: "  "})
-  assert not (auth-ready {type: "unsupported"} {})
+  let cases = [
+    {
+      name: "empty auth defaults to none"
+      auth: {}
+      env: {}
+      expected: true
+    }
+    {
+      name: "explicit none auth"
+      auth: {type: "none"}
+      env: {}
+      expected: true
+    }
+    {
+      name: "bearer_file with non-empty token"
+      auth: {
+        type: "bearer_file"
+        path: $token
+      }
+      env: {}
+      expected: true
+    }
+    {
+      name: "bearer_file with blank token"
+      auth: {
+        type: "bearer_file"
+        path: $blank
+      }
+      env: {}
+      expected: false
+    }
+    {
+      name: "header_file with header and token"
+      auth: {
+        type: "header_file"
+        header: "X-API-Key"
+        path: $token
+      }
+      env: {}
+      expected: true
+    }
+    {
+      name: "header_file with empty header"
+      auth: {
+        type: "header_file"
+        header: ""
+        path: $token
+      }
+      env: {}
+      expected: false
+    }
+    {
+      name: "bearer_env with populated variable"
+      auth: {
+        type: "bearer_env"
+        env: "API_TOK"
+      }
+      env: {API_TOK: "secret"}
+      expected: true
+    }
+    {
+      name: "bearer_env with blank variable"
+      auth: {
+        type: "bearer_env"
+        env: "API_TOK"
+      }
+      env: {API_TOK: "  "}
+      expected: false
+    }
+    {
+      name: "unsupported auth type"
+      auth: {type: "unsupported"}
+      env: {}
+      expected: false
+    }
+  ]
+  for case in $cases {
+    assert equal (auth-ready $case.auth $case.env) $case.expected $case.name
+  }
 }
 
 def "test build-query-url renders templates and appends query strings" [] {
@@ -153,7 +203,12 @@ def "test fetch-http reports missing url, missing token, and curl or payload err
   install-stub $CURL_STUB $dir "curl"
   let log = ($dir | path join "curl.jsonl")
 
-  let url_err = try { fetch-http {} 5sec {} "billing"; "" } catch {|e| $e.msg }
+  let url_err = try {
+    fetch-http {} 5sec {} "billing"
+    ""
+  } catch {|e|
+    $e.msg
+  }
   assert equal $url_err "billing url is empty"
 
   let tok_err = try {
@@ -166,7 +221,9 @@ def "test fetch-http reports missing url, missing token, and curl or payload err
       extract: ["usage" "total_usd"]
     } 5sec {} "billing"
     ""
-  } catch {|e| $e.msg }
+  } catch {|e|
+    $e.msg
+  }
   assert equal $tok_err "http cost source token file is missing or empty"
 
   for case in [
@@ -194,7 +251,9 @@ def "test fetch-http reports missing url, missing token, and curl or payload err
           extract: ["usage" "total_usd"]
         } 5sec {} "billing"
         ""
-      } catch {|e| $e.msg }
+      } catch {|e|
+        $e.msg
+      }
     }
     assert equal $err $case.expected
   }

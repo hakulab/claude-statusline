@@ -10,6 +10,40 @@ use ./providers.testlib.nu [install-stub read-calls]
 
 const CCUSAGE_STUB = path self "../ccusage.stub.nu"
 
+def "test ccusage-json reports nonzero exit and scalar JSON errors" [] {
+  let dir = (mktemp --directory)
+  install-stub $CCUSAGE_STUB $dir "ccusage"
+  let log = ($dir | path join "ccusage.jsonl")
+
+  let exit_err = with-env {
+    CCUSAGE_MODE: "fail-blocks"
+    PATH: ($env.PATH | prepend $dir)
+    STUB_LOG: $log
+  } {
+    try {
+      ccusage-json ["blocks" "--active"]
+      ""
+    } catch {|e|
+      $e.msg
+    }
+  }
+  assert equal $exit_err "ccusage blocks --active exited 1"
+
+  let scalar_err = with-env {
+    CCUSAGE_MODE: "scalar-blocks"
+    PATH: ($env.PATH | prepend $dir)
+    STUB_LOG: $log
+  } {
+    try {
+      ccusage-json ["blocks" "--active"]
+      ""
+    } catch {|e|
+      $e.msg
+    }
+  }
+  assert equal $scalar_err "ccusage blocks --active returned invalid JSON"
+}
+
 def "test current-ccusage fetches daily only by default and adds blocks with flag" [] {
   let dir = (mktemp --directory)
   install-stub $CCUSAGE_STUB $dir "ccusage"
@@ -48,28 +82,4 @@ def "test current-ccusage fetches daily only by default and adds blocks with fla
     burn_rate: 3.25
   }
   assert equal (read-calls $full_log | length) 2
-}
-
-def "test ccusage-json reports nonzero exit and scalar JSON errors" [] {
-  let dir = (mktemp --directory)
-  install-stub $CCUSAGE_STUB $dir "ccusage"
-  let log = ($dir | path join "ccusage.jsonl")
-
-  let exit_err = with-env {
-    CCUSAGE_MODE: "fail-blocks"
-    PATH: ($env.PATH | prepend $dir)
-    STUB_LOG: $log
-  } {
-    try { ccusage-json [blocks --active]; "" } catch {|e| $e.msg }
-  }
-  assert equal $exit_err "ccusage blocks --active exited 1"
-
-  let scalar_err = with-env {
-    CCUSAGE_MODE: "scalar-blocks"
-    PATH: ($env.PATH | prepend $dir)
-    STUB_LOG: $log
-  } {
-    try { ccusage-json [blocks --active]; "" } catch {|e| $e.msg }
-  }
-  assert equal $scalar_err "ccusage blocks --active returned invalid JSON"
 }

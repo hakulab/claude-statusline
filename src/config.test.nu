@@ -118,15 +118,19 @@ def "test load-config errors on missing explicit file or non-record payload" [] 
   let missing_err = try {
     load-config $missing
     ""
-  } catch {|err| $err.msg }
+  } catch {|e|
+    $e.msg
+  }
   assert ($missing_err | str contains "config file not found")
 
   let list_file = ($dir | path join "list.json")
-  "[1, 2, 3]" | save --force --raw $list_file
+  [1 2 3] | to json | save --force --raw $list_file
   let shape_err = try {
     load-config $list_file
     ""
-  } catch {|err| $err.msg }
+  } catch {|e|
+    $e.msg
+  }
   assert ($shape_err | str contains "must contain a table or record")
 }
 
@@ -144,22 +148,43 @@ def "test source-matches enforces URL boundary and env-exists" [] {
       env_exists: ["BILLING_TOKEN"]
     }
   }
-  assert (source-matches $entry {
-    ANTHROPIC_BASE_URL: "https://api.example.com"
-    BILLING_TOKEN: "present"
-  })
-  assert (source-matches $entry {
-    ANTHROPIC_BASE_URL: "https://api.example.com/anthropic"
-    BILLING_TOKEN: "present"
-  })
-  assert not (source-matches $entry {
-    ANTHROPIC_BASE_URL: "https://api.example.com.evil.test/anthropic"
-    BILLING_TOKEN: "present"
-  })
-  assert not (source-matches $entry {
-    ANTHROPIC_BASE_URL: "https://api.example.com/anthropic"
-    BILLING_TOKEN: "   "
-  })
+  let cases = [
+    {
+      name: "exact URL match"
+      env: {
+        ANTHROPIC_BASE_URL: "https://api.example.com"
+        BILLING_TOKEN: "present"
+      }
+      expected: true
+    }
+    {
+      name: "path suffix under URL prefix"
+      env: {
+        ANTHROPIC_BASE_URL: "https://api.example.com/anthropic"
+        BILLING_TOKEN: "present"
+      }
+      expected: true
+    }
+    {
+      name: "lookalike host suffix rejected"
+      env: {
+        ANTHROPIC_BASE_URL: "https://api.example.com.evil.test/anthropic"
+        BILLING_TOKEN: "present"
+      }
+      expected: false
+    }
+    {
+      name: "blank required env var rejected"
+      env: {
+        ANTHROPIC_BASE_URL: "https://api.example.com/anthropic"
+        BILLING_TOKEN: "   "
+      }
+      expected: false
+    }
+  ]
+  for case in $cases {
+    assert equal (source-matches $entry $case.env) $case.expected $case.name
+  }
 }
 
 def "test active-cost-sources filters empty ids and unmatched rules" [] {

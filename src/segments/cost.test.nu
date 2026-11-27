@@ -50,11 +50,41 @@ def "test format-today renders combined, single-side, and empty values" [] {
     has_cost: true
     daily_cost: 12.5
   }
-  assert equal (format-today $local [$remote_a] | ansi strip) "Today: $40.75 / $198.11"
-  assert equal (format-today $local [$remote_a $remote_b] | ansi strip) (
-    "Today: $40.75 / $198.11 / $12.50"
-  )
-  assert equal (format-today $local [] | ansi strip) "Today: $40.75"
-  assert equal (format-today {} [$remote_a] | ansi strip) "Today: $198.11"
-  assert equal (format-today {} [] | ansi strip) ""
+  let cases = [
+    {
+      name: "local and single remote"
+      local: $local
+      remotes: [$remote_a]
+      expected: "Today: $40.75 / $198.11"
+    }
+    {
+      name: "local and multiple remotes"
+      local: $local
+      remotes: [$remote_a $remote_b]
+      expected: "Today: $40.75 / $198.11 / $12.50"
+    }
+    {
+      name: "local only"
+      local: $local
+      remotes: []
+      expected: "Today: $40.75"
+    }
+    {
+      name: "remote only"
+      local: {}
+      remotes: [$remote_a]
+      expected: "Today: $198.11"
+    }
+    {
+      name: "empty local and remote"
+      local: {}
+      remotes: []
+      expected: ""
+    }
+  ]
+  for case in $cases {
+    let rendered = (format-today $case.local $case.remotes)
+    let actual = if $case.expected == "" { $rendered } else { $rendered | ansi strip }
+    assert equal $actual $case.expected $case.name
+  }
 }

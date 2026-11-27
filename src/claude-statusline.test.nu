@@ -5,6 +5,7 @@
 # ==================================================================================================
 
 use std/assert
+use std-rfc/str
 use ./providers/ccusage.nu [CCUSAGE_SPEC DAILY_SPEC]
 
 const SCRIPT_DIR = path self "."
@@ -324,7 +325,18 @@ def assert-stale-preserved [result: record, original: string] {
 def "test empty or minimal stdin renders cleanly without error" [] {
   let dir = (mktemp --directory)
   let config = ($dir | path join "config.toml")
-  "[layout]\nrows = [[\"dir\", \"git\"], [\"context\", \"time\"]]\n" | save --force --raw $config
+  (
+    {
+      layout: {
+        rows: [
+          ["dir" "git"]
+          ["context" "time"]
+        ]
+      }
+    }
+    | to toml
+    | save --force --raw $config
+  )
 
   for raw in ["" "{}" "not-json"] {
     let run = (
@@ -521,7 +533,13 @@ def "test layout without git skips invoking git binary" [] {
   let git_log = ($dir | path join "git-called")
   mkdir $spy_bin
   let git_spy = ($spy_bin | path join "git")
-  $"#!($nu.current-exe) --no-config-file\n\"called\" | save --append ($git_log | to nuon)\n"
+  (
+    $"
+    #!($nu.current-exe) --no-config-file
+    'called' | save --append ($git_log | to nuon)
+    "
+    | str dedent
+  )
   | save --force --raw $git_spy
   ^chmod +x $git_spy
 
