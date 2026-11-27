@@ -3,24 +3,44 @@
 # ==================================================================================================
 # Claude Code Status Line
 # ==================================================================================================
-# Row 1: <directory> <git>
-# Row 2: Model | Ctx: X% (XXk/1000k) | [Block: ...] | [Today: $local / $remote] | HH:MM
+# Renders configurable rows of segments with lazy execution and stale-while-revalidate cost caching.
 # ==================================================================================================
 
 use ./cache.nu [read-cached write-cache]
-use ./config.nu [active-cost-sources load-config should-show-block]
-use ./format.nu [dim paint]
+use ./config.nu [active-cost-sources load-config row-separator should-show-block]
+use ./format.nu [dim]
 use ./providers/ccusage.nu [CCUSAGE_SPEC DAILY_SPEC current-ccusage]
 use ./providers/command.nu [fetch-command]
 use ./providers/common.nu [source-cache-spec]
 use ./providers/http.nu [auth-ready fetch-http]
+use ./segments/basic.nu [format-dir format-mode format-time input-cwd]
 use ./segments/context.nu [format-context]
-use ./segments/cost.nu [format-block format-today]
+use ./segments/cost.nu [format-block format-session format-today]
 use ./segments/git.nu [format-git-info]
-use ./segments/model.nu [model-name]
+use ./segments/model.nu [format-model]
 
 const SCRIPT_PATH = path self
-const DEFAULT_CACHE_DIR = $nu.cache-dir | path join "claude-statusline"
+
+def default-cache-dir []: nothing -> path {
+  let home = ($env.HOME? | default --empty $nu.home-dir)
+  let cache_home = ($env.XDG_CACHE_HOME? | default --empty ($home | path join ".cache"))
+  $cache_home | path join "claude-statusline"
+}
+
+def read-input []: nothing -> record {
+  # `open /dev/stdin` re-opens fd 0 by path, which fails with ENXIO when the caller passes a
+  # socket, as Claude Code's spawn does.
+  let raw = (^cat | str trim)
+  if ($raw | is-empty) {
+    return {}
+  }
+  let parsed = (try { $raw | from json } catch { {} })
+  if ($parsed | describe | str starts-with "record") {
+    $parsed
+  } else {
+    {}
+  }
+}
 
 def refresh-source [source_id: string, cache_dir: path, config: record]: nothing -> nothing {
   let entry = ($config.cost_sources | where id == $source_id | get -o 0)
@@ -71,42 +91,78 @@ def source-ready [entry: record, env_vars: record]: nothing -> bool {
   }
 }
 
-# Render a two-row Claude Code status line from JSON on stdin.
+def join-row [parts: list<string>, separator: string]: nothing -> string {
+  let non_empty = ($parts | compact --empty)
+  if ($non_empty | is-empty) {
+    return ""
+  }
+  let sep = if ($separator | str trim | is-empty) {
+    $separator
+  } else {
+    dim $separator
+  }
+  $non_empty | str join $sep
+}
+
+def render-segment [
+  name: string
+  input: record
+  config: record
+  git_info: string
+  local_usage: record
+  remote_usages: list<record>
+  show_block: bool
+]: nothing -> string {
+  match $name {
+    "dir" => { format-dir $input }
+    "git" => $git_info
+    "mode" => { format-mode $input }
+    "model" => { format-model $input $config.models }
+    "context" => { format-context $input }
+    "session" => { format-session $input }
+    "block" => { if $show_block { format-block $local_usage } else { "" } }
+    "today" => { format-today $local_usage $remote_usages }
+    "time" => { format-time }
+    _ => ""
+  }
+}
+
+# Render a configurable Claude Code status line from JSON on stdin.
 def main [
   --config: string = "" # Path to TOML or JSON configuration file
-  --cache-dir: path = $DEFAULT_CACHE_DIR # Shared cache directory for concurrent status lines
+  --cache-dir: string = "" # Cache directory (default: $XDG_CACHE_HOME/claude-statusline)
   --refresh: string = "" # Refresh target to write and exit: ccusage, ccusage-daily, or source:<id>
   --sync-refresh # Wait for cache refreshes to complete before exiting
 ] {
+  let effective_cache_dir = if ($cache_dir | is-not-empty) {
+    $cache_dir
+  } else {
+    default-cache-dir
+  }
   let config_data = (load-config $config)
   if ($refresh | is-not-empty) {
-    refresh-target $refresh $cache_dir $config_data
+    refresh-target $refresh $effective_cache_dir $config_data
     return
   }
 
-  # `open /dev/stdin` re-opens fd 0 by path, which fails with ENXIO when the caller passes a
-  # socket, as Claude Code's spawn does.
-  let input = (^cat | from json)
-  let cwd = $input.workspace.current_dir
-  let home = ($env.HOME? | default $nu.home-dir)
+  let input = (read-input)
+  let active_segments = ($config_data.layout.rows | flatten | uniq)
+  let needs_git = ("git" in $active_segments)
+  let needs_block = ("block" in $active_segments)
+  let needs_today = ("today" in $active_segments)
+  let needs_cost = ($needs_block or $needs_today)
 
-  let dir_name = if $cwd == $home {
-    "~"
-  } else {
-    $cwd | path basename
-  }
-  let row1 = $"(paint $dir_name "blue_bold")(format-git-info $cwd)"
+  let cwd = (input-cwd $input)
+  let git_info = if $needs_git { format-git-info $cwd } else { "" }
 
-  let model = (model-name $input $config_data.models)
-  let ctx = (format-context $input)
-  let matched = (active-cost-sources $config_data $env)
-  let show_block = (should-show-block $config_data $matched)
+  let matched = if $needs_cost { active-cost-sources $config_data $env } else { [] }
+  let show_block = ($needs_block and (should-show-block $matched))
 
-  let local_usage = if $config_data.local.provider == "ccusage" {
+  let local_usage = if $config_data.local.provider == "ccusage" and ($show_block or $needs_today) {
     let spec = if $show_block { $CCUSAGE_SPEC } else { $DAILY_SPEC }
     (
       read-cached
-        $cache_dir
+        $effective_cache_dir
         $spec
         $SCRIPT_PATH
         $config
@@ -118,14 +174,14 @@ def main [
     {}
   }
 
-  let remote_usages = (
+  let remote_usages = if $needs_today {
     $matched
     | where {|entry| source-ready $entry $env }
     | each {|entry|
       let spec = (source-cache-spec $entry.id)
       (
         read-cached
-          $cache_dir
+          $effective_cache_dir
           $spec
           $SCRIPT_PATH
           $config
@@ -134,19 +190,33 @@ def main [
           --sync-refresh=$sync_refresh
       )
     }
-  )
+  } else {
+    []
+  }
 
-  let row2 = (
-    [
-      (if ($model | is-not-empty) { paint $model "cyan" })
-      $ctx
-      (if $show_block { format-block $local_usage })
-      (format-today $local_usage $remote_usages)
-      (dim (date now | format date "%H:%M"))
-    ]
+  let rows = (
+    $config_data.layout.rows
+    | enumerate
+    | each {|row|
+      let parts = (
+        $row.item
+        | each {|segment|
+          (
+            render-segment
+              $segment
+              $input
+              $config_data
+              $git_info
+              $local_usage
+              $remote_usages
+              $show_block
+          )
+        }
+      )
+      join-row $parts (row-separator $config_data.layout $row.index)
+    }
     | compact --empty
-    | str join $" (dim "|") "
   )
 
-  print --no-newline $"($row1)\n($row2)"
+  print --no-newline ($rows | str join "\n")
 }

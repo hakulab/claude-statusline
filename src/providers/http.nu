@@ -130,10 +130,7 @@ export def fetch-http [
 
   let result = (
     ^curl $url
-      --fail
-      --silent
-      --show-error
-      --location
+      -fsS
       --connect-timeout $timeout_secs
       --max-time $timeout_secs
       ...$method_args

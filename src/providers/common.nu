@@ -28,6 +28,25 @@ export def parse-json-record [text: string, label: string]: nothing -> record {
   $parsed
 }
 
+export def parse-finite-float [value: any, error_msg: string]: nothing -> float {
+  let kind = ($value | describe)
+  if $kind not-in ["int" "float" "string"] {
+    error make {msg: $error_msg}
+  }
+  let candidate = if $kind == "string" { $value | str trim } else { $value }
+  let num = (
+    try {
+      $candidate | into float
+    } catch {
+      error make {msg: $error_msg}
+    }
+  )
+  if ($num != $num) or (($num | into string) in ["inf" "-inf"]) {
+    error make {msg: $error_msg}
+  }
+  $num
+}
+
 export def extract-cost [parsed: any, path: list<string>, label: string]: nothing -> float {
   if ($path | is-empty) {
     error make {msg: $"($label) extract path must not be empty"}
@@ -47,11 +66,7 @@ export def extract-cost [parsed: any, path: list<string>, label: string]: nothin
   if $value == null {
     error make {msg: $"($label) response missing ($path | str join '.')"}
   }
-  try {
-    $value | into float
-  } catch {
-    error make {msg: $"($label) ($path | str join '.') is not numeric"}
-  }
+  parse-finite-float $value $"($label) ($path | str join '.') is not numeric"
 }
 
 export def source-cache-spec [source_id: string]: nothing -> record {

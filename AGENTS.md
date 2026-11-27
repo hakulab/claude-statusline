@@ -1,6 +1,6 @@
 # AGENTS.md: claude-statusline
 
-`claude-statusline` is a modular, non-blocking Nushell statusline renderer for Claude Code with stale-while-revalidate caching and pluggable local and remote cost providers.
+`claude-statusline` is a modular, non-blocking Nushell status line renderer for Claude Code with stale-while-revalidate caching and pluggable local and remote cost providers.
 
 ## Read before you edit
 
@@ -13,7 +13,7 @@
 
 Wrap code and comments at 100 columns, counting the indent.
 
-Keep the entry point at `src/claude-statusline.nu` so `dk.mkNuApplication` installs `bin/claude-statusline`. Keep imports unidirectional (`src/claude-statusline.nu` -> domain modules -> shared helpers).
+Keep the entry point at `src/claude-statusline.nu` so `dk.mkNuApplication` installs `bin/claude-statusline`. Keep imports unidirectional (`src/claude-statusline.nu` → domain modules → shared helpers).
 
 ## Verification
 

@@ -59,14 +59,18 @@ export def work-counts [
   entries: list<string>
 ]: nothing -> record<staged: int, modified: int, untracked: int> {
   let codes = ($entries | each { str substring 0..<2 })
+  let tracked = ($codes | where $it != "??" and $it != "!!")
   {
-    staged: ($codes | where ($it | str substring 0..<1) in ["M" "A"] | length)
-    modified: ($codes | where $it == " M" | length)
+    staged: ($tracked | where ($it | str substring 0..<1) in ["M" "A" "D" "R" "C"] | length)
+    modified: ($tracked | where ($it | str substring 1..<2) in ["M" "D" "T"] | length)
     untracked: ($codes | where $it == "??" | length)
   }
 }
 
 export def format-git-info [cwd: string]: nothing -> string {
+  if ($cwd | is-empty) {
+    return ""
+  }
   let output = (git-status $cwd)
   let branch = (parse-branch ($output | first | default ""))
   if ($branch.branch | is-empty) {
@@ -88,5 +92,9 @@ export def format-git-info [cwd: string]: nothing -> string {
     | str join
   )
 
-  $" (paint $branch.branch "green")(paint $marks "yellow") "
+  if ($marks | is-empty) {
+    paint $branch.branch "green"
+  } else {
+    $"(paint $branch.branch "green")(paint $marks "yellow")"
+  }
 }

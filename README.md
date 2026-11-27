@@ -1,124 +1,69 @@
 # claude-statusline
 
-Modular, non-blocking Claude Code statusline with stale-while-revalidate caching and pluggable cost providers.
+[![CI](https://github.com/hakulab/claude-statusline/actions/workflows/ci.yml/badge.svg)](https://github.com/hakulab/claude-statusline/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## Output
+`claude-statusline` renders a non-blocking status line for Claude Code with local `ccusage` tracking, configurable layouts, and optional external cost providers.
 
 ```text
 my-project main »1 +2 !1 ?3
-Opus 4.6 (1M) high | Ctx: 42% (420k/1000k) | Block: $4.50 (2h5m left, $1.75/h) | Today: $8.25 | 14:35
+Opus 5.5 (1M) high | Ctx: 42% (420k/1000k) | Block: $4.50 (2h5m left, $1.75/h) | Today: $8.25 | 14:35
 ```
 
-- **Row 1**: current directory basename (or `~` for `$HOME`) and Git branch with ahead/behind, staged, modified, and untracked counts.
-- **Row 2**: model name (with optional alias map, `(1M)` suffix, and effort level), context window usage, active billing block (when enabled), daily spend (`Today: $local` or `Today: $local / $remote`), and local `HH:MM` clock.
+- **Zero configuration**: personal Claude Code subscriptions work without a config file, using `ccusage` for active 5-hour block and daily usage.
+- **Non-blocking caching**: `ccusage` and external cost providers refresh in detached background processes behind `flock --nonblock` locks while stale cached values are served.
+- **Lazy execution**: `git`, `ccusage blocks`, and cost providers run only when the configured layout uses the segments that need them.
+- **Configurable layout**: arrange [built-in segments](docs/configuration.md#built-in-segments) across any number of rows, add model aliases, or plug in HTTP or command cost providers.
 
-All expensive queries (`ccusage`, HTTP endpoints, external commands) run asynchronously behind per-target `flock --nonblock` locks with stale-while-revalidate caching, so the statusline renders without blocking Claude Code.
+## Install
 
-## Installation
+### Nix
 
-### Nix Flake / Home Manager
-
-Add the flake input and enable the Home Manager module:
-
-```nix
-{
-  inputs.claude-statusline.url = "github:hakulab/claude-statusline";
-
-  # In your Home Manager configuration:
-  imports = [ inputs.claude-statusline.homeModules.default ];
-
-  programs.claude-statusline = {
-    enable = true;
-    settings = {
-      defaults = {
-        cache_ttl = "60s";
-        max_stale = "15m";
-        timeout = "5s";
-      };
-
-      models."claude-opus-4-6" = "Opus 4.6";
-
-      cost_sources = [
-        {
-          id = "billing";
-          match.env_prefix.ANTHROPIC_BASE_URL = "https://api.example.com";
-          source = {
-            type = "http";
-            url = "https://billing.example.com/v1/usage";
-            query = {
-              start = "{start_utc}";
-              end = "{end_utc}";
-            };
-            auth = {
-              type = "bearer_file";
-              path = "/run/secrets/billing-token";
-            };
-            extract = [ "usage" "total_usd" ];
-          };
-          behavior.show_block = false;
-        }
-      ];
-    };
-  };
-}
+```bash
+nix profile install github:hakulab/claude-statusline
 ```
 
-Then point Claude Code's `statusLine.command` in `~/.claude/settings.json` to `claude-statusline` (or `${lib.getExe config.programs.claude-statusline.package}`).
-
-### Overlay or Package
+Or run directly without installing:
 
 ```bash
 nix run github:hakulab/claude-statusline -- --help
 ```
 
-## Configuration
+### Home Manager
 
-By default, `claude-statusline` reads `${XDG_CONFIG_HOME:-~/.config}/claude-statusline/config.toml` (override with `--config <path>`). Every section is optional.
+Add the flake input (`inputs.claude-statusline.url = "github:hakulab/claude-statusline";`), import `inputs.claude-statusline.homeModules.default`, and enable the module:
 
-```toml
-[defaults]
-cache_ttl = "60s"
-max_stale = "15m"
-timeout = "5s"
-
-[local]
-provider = "ccusage" # "ccusage" or "none"
-show_block = true
-
-[models]
-"claude-opus-4-6" = "Opus 4.6"
-
-[[cost_sources]]
-id = "billing"
-
-[cost_sources.match]
-env_prefix = { ANTHROPIC_BASE_URL = "https://api.example.com" }
-env_exists = ["BILLING_ENABLED"]
-
-[cost_sources.source]
-type = "http"
-method = "GET"
-url = "https://billing.example.com/v1/usage"
-query = { start = "{start_utc}", end = "{end_utc}" }
-headers = { Accept = "application/json" }
-auth = { type = "bearer_file", path = "/path/to/token" }
-ca_file = "/path/to/ca-bundle.crt"
-no_proxy = false
-extract = ["usage", "total_usd"]
-timeout = "5s"
-
-[cost_sources.behavior]
-show_block = false
-cache_ttl = "60s"
-max_stale = "15m"
+```nix
+programs.claude-statusline.enable = true;
 ```
 
-### Pluggable cost sources
+### From source
 
-- **Matching**: `match.env_prefix` checks environment variable prefixes (enforcing a `/` or exact boundary for `http://` and `https://` URLs), and `match.env_exists` requires non-empty environment variables.
-- **HTTP provider** (`type = "http"`): queries an endpoint with `curl`, passing credentials via `--variable` and `--expand-header` so secrets never appear in argv. Supported `auth.type` values: `bearer_file`, `header_file` (with `header`), `bearer_env` (with `env`), or `none`. Missing or empty credentials skip the query gracefully.
-- **Command provider** (`type = "command"`): runs `argv` with a timeout, parsing stdout either as a plain float USD value or via the JSON `extract` path.
-- **Template variables**: `{start_utc}`, `{end_utc}`, `{date}` (`YYYY-MM-DD`), `{date_compact}` (`YYYYMMDD`), `{start_unix}`, and `{end_unix}` are expanded in HTTP URLs, query parameters, headers, and command `argv` using the local calendar day.
+Outside Nix, clone the repository and run `src/claude-statusline.nu` directly with Nushell:
+
+```bash
+git clone https://github.com/hakulab/claude-statusline ~/.local/share/claude-statusline
+nu --no-config-file ~/.local/share/claude-statusline/src/claude-statusline.nu --help
+```
+
+Runtime requirements: `nu` (Nushell), `bash`, `curl`, `flock`, `git`, and optionally `ccusage` for block and daily usage tracking.
+
+## Claude Code setup
+
+Point `statusLine.command` in `~/.claude/settings.json` to `claude-statusline`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "claude-statusline"
+  }
+}
+```
+
+## Configuration
+
+Personal Claude Code subscriptions work without a configuration file. See [docs/configuration.md](docs/configuration.md) to customize rows, separators, model aliases, Home Manager `programs.claude-statusline.settings`, or external HTTP and command cost providers.
 
 ## Development
 
@@ -126,3 +71,7 @@ max_stale = "15m"
 nix develop -c run-hooks
 nix flake check
 ```
+
+## License
+
+Copyright (c) 2026 [Hakula](https://hakula.xyz). Licensed under the [MIT License](LICENSE).

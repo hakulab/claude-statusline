@@ -7,12 +7,16 @@ use ./time.nu [parse-duration]
 const DEFAULT_CACHE_TTL = 60sec
 const DEFAULT_MAX_STALE = 15min
 const DEFAULT_TIMEOUT = 5sec
+const DEFAULT_ROWS = [
+  ["dir" "git"]
+  ["model" "context" "block" "today" "time"]
+]
+const DEFAULT_ROW0_SEPARATOR = " "
+const DEFAULT_SEPARATOR = " | "
 
 export def default-config-path []: nothing -> path {
-  let config_home = (
-    $env.XDG_CONFIG_HOME?
-    | default (($env.HOME? | default $nu.home-dir) | path join ".config")
-  )
+  let home = ($env.HOME? | default --empty $nu.home-dir)
+  let config_home = ($env.XDG_CONFIG_HOME? | default --empty ($home | path join ".config"))
   $config_home | path join "claude-statusline/config.toml"
 }
 
@@ -23,9 +27,13 @@ export def default-config []: nothing -> record {
       max_stale: $DEFAULT_MAX_STALE
       timeout: $DEFAULT_TIMEOUT
     }
+    layout: {
+      rows: $DEFAULT_ROWS
+      separator: $DEFAULT_SEPARATOR
+      separators: []
+    }
     local: {
       provider: "ccusage"
-      show_block: true
     }
     models: {}
     cost_sources: []
@@ -40,10 +48,17 @@ def normalize-defaults [raw: record]: nothing -> record {
   }
 }
 
+def normalize-layout [raw: record]: nothing -> record {
+  {
+    rows: ($raw.rows? | default $DEFAULT_ROWS)
+    separator: ($raw.separator? | default $DEFAULT_SEPARATOR)
+    separators: ($raw.separators? | default [])
+  }
+}
+
 def normalize-local [raw: record]: nothing -> record {
   {
     provider: ($raw.provider? | default "ccusage")
-    show_block: ($raw.show_block? | default true)
   }
 }
 
@@ -90,9 +105,21 @@ export def load-config [config_path: string = ""]: nothing -> record {
 
   {
     defaults: $defaults
+    layout: (normalize-layout ($raw.layout? | default {}))
     local: (normalize-local ($raw.local? | default {}))
     models: ($raw.models? | default {})
     cost_sources: $sources
+  }
+}
+
+export def row-separator [layout: record, index: int]: nothing -> string {
+  let override = ($layout.separators | get -o $index)
+  if $override != null {
+    $override
+  } else if $index == 0 {
+    $DEFAULT_ROW0_SEPARATOR
+  } else {
+    $layout.separator
   }
 }
 
@@ -139,14 +166,6 @@ export def active-cost-sources [config: record, env_vars: record]: nothing -> li
   | where {|entry| ($entry.id | is-not-empty) and (source-matches $entry $env_vars) }
 }
 
-export def should-show-block [config: record, matched_sources: list<record>]: nothing -> bool {
-  $matched_sources
-  | reduce --fold $config.local.show_block {|entry, acc|
-    let override = $entry.behavior.show_block
-    if $override != null {
-      $override
-    } else {
-      $acc
-    }
-  }
+export def should-show-block [matched_sources: list<record>]: nothing -> bool {
+  not ($matched_sources | any {|entry| $entry.behavior.show_block? == false })
 }

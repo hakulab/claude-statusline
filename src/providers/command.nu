@@ -3,7 +3,17 @@
 # ==================================================================================================
 
 use ../time.nu [duration-seconds local-day-window parse-duration render-template template-vars]
-use ./common.nu [extract-cost parse-json-record]
+use ./common.nu [extract-cost parse-finite-float parse-json-record]
+
+def timeout-bin []: nothing -> string {
+  if (which timeout | is-not-empty) {
+    "timeout"
+  } else if (which gtimeout | is-not-empty) {
+    "gtimeout"
+  } else {
+    ""
+  }
+}
 
 export def fetch-command [
   source_cfg: record
@@ -24,18 +34,19 @@ export def fetch-command [
     | into string
   )
 
-  let result = (^timeout $timeout_secs ...$argv | complete)
+  let timeout_cmd = (timeout-bin)
+  let result = if ($timeout_cmd | is-not-empty) {
+    ^$timeout_cmd $timeout_secs ...$argv | complete
+  } else {
+    ^$argv.0 ...($argv | skip 1) | complete
+  }
   if $result.exit_code != 0 {
     error make {msg: $"($label) command exited ($result.exit_code)"}
   }
 
   let extract = ($source_cfg.extract? | default [])
   let cost = if ($extract | is-empty) {
-    try {
-      $result.stdout | str trim | into float
-    } catch {
-      error make {msg: $"($label) stdout is not numeric"}
-    }
+    parse-finite-float $result.stdout $"($label) stdout is not numeric"
   } else {
     let parsed = (parse-json-record $result.stdout $label)
     extract-cost $parsed $extract $label

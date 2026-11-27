@@ -3,7 +3,7 @@
 # ==================================================================================================
 
 {
-  description = "Modular, non-blocking Claude Code statusline with pluggable cost providers";
+  description = "claude-statusline packages and development environment";
 
   nixConfig = {
     extra-substituters = [ "https://hakula.cachix.org" ];
@@ -37,15 +37,13 @@
       inherit (nixpkgs) lib;
 
       runtimeInputs =
-        pkgs:
-        (with pkgs; [
-          bash
+        pkgs: with pkgs; [
+          bashNonInteractive
           coreutils
           curl
           flock
           git
-        ])
-        ++ lib.optional (pkgs ? ccusage) pkgs.ccusage;
+        ];
 
       mkClaudeStatusline =
         pkgs:
@@ -81,6 +79,7 @@
         else
           mkClaudeStatusline pkgs;
 
+      # A key lets the module system deduplicate the module when it is imported twice.
       homeModuleKey = "${self}/flake.nix#homeModules.default";
     in
     # ----------------------------------------------------------------------------------------------

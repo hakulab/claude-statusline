@@ -1,11 +1,14 @@
 cacert
 cachix
 ccusage
+cdpath
 claude
 coreutils
 devkit
 direnv
 enxio
+esac
+gtimeout
 hakula
 hakulab
 mktemp
@@ -17,10 +20,12 @@ nonblock
 noproxy
 nuon
 nushell
+pipefail
 pkgs
 pname
 precommit
 prek
+readlink
 sess
 shellcheck
 shfmt
@@ -28,4 +33,7 @@ statusline
 stdenv
 substituters
 testlib
+tzdata
+tzdir
 worktree
+zoneinfo
