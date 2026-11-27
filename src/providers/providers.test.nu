@@ -240,6 +240,7 @@ def "test fetch-http builds curl args for bearer-file, header-file, and bearer-e
   assert equal $res.daily_cost 198.11
 
   let first_args = (read-calls $log | get 0.args)
+  assert ("-fsS" in $first_args)
   assert ("--location" not-in $first_args)
   assert ("--noproxy" in $first_args)
   assert ("--cacert" in $first_args)

@@ -157,7 +157,7 @@ def main [
   let git_info = if $needs_git { format-git-info $cwd } else { "" }
 
   let matched = if $needs_cost { active-cost-sources $config_data $env } else { [] }
-  let show_block = ($needs_block and (should-show-block $config_data $matched))
+  let show_block = ($needs_block and (should-show-block $matched))
 
   let local_usage = if $config_data.local.provider == "ccusage" and ($show_block or $needs_today) {
     let spec = if $show_block { $CCUSAGE_SPEC } else { $DAILY_SPEC }

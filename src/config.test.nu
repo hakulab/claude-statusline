@@ -63,7 +63,6 @@ def "test load-config merges TOML defaults, layout, models, and cost sources" []
 
     [local]
     provider = "ccusage"
-    show_block = true
 
     [models]
     "claude-opus-5-5" = "Opus 5.5"
@@ -209,15 +208,13 @@ def "test active-cost-sources filters empty ids and unmatched rules" [] {
   assert equal ($matched | get id) ["matched"]
 }
 
-def "test should-show-block applies local default and matched overrides in order" [] {
-  let cfg = (default-config)
-  assert equal (should-show-block $cfg []) true
-
+def "test should-show-block hides block when any matched source disables it" [] {
   let hide = {behavior: {show_block: false}}
   let inherit_opt = {behavior: {show_block: null}}
   let show = {behavior: {show_block: true}}
 
-  assert equal (should-show-block $cfg [$hide]) false
-  assert equal (should-show-block $cfg [$hide $inherit_opt]) false
-  assert equal (should-show-block $cfg [$hide $show]) true
+  assert equal (should-show-block []) true
+  assert equal (should-show-block [$inherit_opt $show]) true
+  assert equal (should-show-block [$hide]) false
+  assert equal (should-show-block [$show $hide]) false
 }

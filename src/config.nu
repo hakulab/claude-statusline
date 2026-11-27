@@ -34,7 +34,6 @@ export def default-config []: nothing -> record {
     }
     local: {
       provider: "ccusage"
-      show_block: true
     }
     models: {}
     cost_sources: []
@@ -60,7 +59,6 @@ def normalize-layout [raw: record]: nothing -> record {
 def normalize-local [raw: record]: nothing -> record {
   {
     provider: ($raw.provider? | default "ccusage")
-    show_block: ($raw.show_block? | default true)
   }
 }
 
@@ -168,14 +166,6 @@ export def active-cost-sources [config: record, env_vars: record]: nothing -> li
   | where {|entry| ($entry.id | is-not-empty) and (source-matches $entry $env_vars) }
 }
 
-export def should-show-block [config: record, matched_sources: list<record>]: nothing -> bool {
-  $matched_sources
-  | reduce --fold $config.local.show_block {|entry, acc|
-    let override = $entry.behavior.show_block
-    if $override != null {
-      $override
-    } else {
-      $acc
-    }
-  }
+export def should-show-block [matched_sources: list<record>]: nothing -> bool {
+  not ($matched_sources | any {|entry| $entry.behavior.show_block? == false })
 }

@@ -3,7 +3,7 @@
 # ==================================================================================================
 
 {
-  description = "Modular, non-blocking Claude Code statusline with pluggable cost providers";
+  description = "claude-statusline packages and development environment";
 
   nixConfig = {
     extra-substituters = [ "https://hakula.cachix.org" ];
@@ -35,7 +35,6 @@
     }:
     let
       inherit (nixpkgs) lib;
-      inherit (import ./flake.nix) description;
 
       runtimeInputs =
         pkgs: with pkgs; [
@@ -54,7 +53,7 @@
           src = ./src;
           runtimeInputs = runtimeInputs pkgs;
           meta = {
-            inherit description;
+            description = "Modular, non-blocking Claude Code statusline with pluggable cost providers";
             homepage = "https://github.com/hakulab/claude-statusline";
             license = lib.licenses.mit;
             platforms = lib.platforms.all;
@@ -80,6 +79,7 @@
         else
           mkClaudeStatusline pkgs;
 
+      # A key lets the module system deduplicate the module when it is imported twice.
       homeModuleKey = "${self}/flake.nix#homeModules.default";
     in
     # ----------------------------------------------------------------------------------------------

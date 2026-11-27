@@ -154,7 +154,6 @@ def statusline-fields [output: string]: nothing -> record {
     | split row " | "
   )
   {
-    sess: ($columns | where ($it | str starts-with "Sess:") | first | default "")
     block: ($columns | where ($it | str starts-with "Block:") | first | default "")
     daily: ($columns | where ($it | str starts-with "Today:") | first | default "")
   }
@@ -165,8 +164,6 @@ def invoke-statusline [
   --ccusage-mode: string = "success"
   --curl-mode: string = "success"
   --base-url: string = ""
-  --auth-type: string = "bearer_file"
-  --token-content: string = "test-billing-token"
   --no-token
   --no-ca
   --tz: string = "UTC"
@@ -191,27 +188,11 @@ def invoke-statusline [
 
   let token_file = ($dir | path join "billing-token")
   if not $no_token {
-    $token_content | save --force --raw $token_file
+    "test-billing-token" | save --force --raw $token_file
   }
   let ca_file = ($dir | path join "ca-bundle.crt")
   if not $no_ca {
     "dummy-ca" | save --force --raw $ca_file
-  }
-
-  let auth = match $auth_type {
-    "header_file" => {
-      type: "header_file"
-      header: "X-API-Key"
-      path: $token_file
-    }
-    "bearer_env" => {
-      type: "bearer_env"
-      env: "BILLING_API_TOKEN"
-    }
-    _ => {
-      type: "bearer_file"
-      path: $token_file
-    }
   }
 
   let base_cfg = {
@@ -222,7 +203,6 @@ def invoke-statusline [
     }
     local: {
       provider: "ccusage"
-      show_block: true
     }
     models: {
       "claude-opus-5-5": "Opus 5.5"
@@ -243,7 +223,10 @@ def invoke-statusline [
             end: "{end_utc}"
             scope: "user"
           }
-          auth: $auth
+          auth: {
+            type: "bearer_file"
+            path: $token_file
+          }
           ca_file: $ca_file
           no_proxy: true
           extract: ["usage" "total_usd"]
@@ -270,7 +253,6 @@ def invoke-statusline [
     $ccusage_lock
   }
   let sync_args = if $async { [] } else { ["--sync-refresh"] }
-  let env_token = if $no_token { "" } else { $token_content }
   let path_list = if ($extra_path | is-not-empty) {
     $env.PATH | prepend $env.NU_TEST_STUBS | prepend $extra_path
   } else {
@@ -287,7 +269,6 @@ def invoke-statusline [
 
   let run = with-env {
     ANTHROPIC_BASE_URL: $base_url
-    BILLING_API_TOKEN: $env_token
     CCUSAGE_MODE: $ccusage_mode
     CURL_LOG: $curl_log
     CURL_MODE: $curl_mode
@@ -340,7 +321,6 @@ def assert-stale-preserved [result: record, original: string] {
     (expected-flock-call $result.cache_dir $result.config $CCUSAGE_SPEC.lock_name "ccusage")
   ]
   assert equal $result.fields {
-    sess: ""
     block: "Block: $4.50 (2h5m left, $1.75/h)"
     daily: "Today: $8.25"
   }
@@ -366,8 +346,8 @@ def "test fresh cache skips flock, ccusage, and curl and omits Sess" [] {
   assert equal $result.flock_calls []
   assert equal $result.calls []
   assert equal $result.curl_calls []
+  assert not ($result.lines.1 | str contains "Sess:")
   assert equal $result.fields {
-    sess: ""
     block: "Block: $4.50 (2h5m left, $1.75/h)"
     daily: "Today: $8.25"
   }
@@ -390,7 +370,6 @@ def "test stale cache serves stale immediately and refreshes cache for next rend
   assert equal $first.calls (refresh-calls $today)
   assert equal $first.curl_calls []
   assert equal $first.fields {
-    sess: ""
     block: "Block: $4.50 (2h5m left, $1.75/h)"
     daily: "Today: $8.25"
   }
@@ -400,7 +379,6 @@ def "test stale cache serves stale immediately and refreshes cache for next rend
   let second = (invoke-statusline $dir)
   assert equal $second.run.exit_code 0 $second.run.stderr
   assert equal $second.fields {
-    sess: ""
     block: "Block: $12.50 (3h5m left, $3.25/h)"
     daily: "Today: $40.75"
   }
@@ -464,7 +442,6 @@ def "test held lock respects max-stale bound and renders no usage when uncached"
     assert equal $result.run.exit_code 0 $result.run.stderr
     assert equal $result.calls []
     assert equal $result.fields {
-      sess: ""
       block: $case.expected_block
       daily: $case.expected_daily
     }
@@ -474,7 +451,6 @@ def "test held lock respects max-stale bound and renders no usage when uncached"
   let uncached = (invoke-statusline $empty_dir --lock-held)
   assert equal $uncached.run.exit_code 0 $uncached.run.stderr
   assert equal $uncached.fields {
-    sess: ""
     block: ""
     daily: ""
   }
@@ -570,7 +546,6 @@ def "test layout without block skips ccusage blocks and queries daily only" [] {
 
   let second = (invoke-statusline $dir --extra-config $extra_cfg)
   assert equal $second.fields {
-    sess: ""
     block: ""
     daily: "Today: $40.75"
   }
@@ -595,8 +570,8 @@ def "test layout without block or today skips ccusage and remote cost providers"
   assert equal $result.flock_calls []
   assert equal $result.calls []
   assert equal $result.curl_calls []
+  assert ($result.lines.1 | str contains "Sess: $1.23")
   assert equal $result.fields {
-    sess: "Sess: $1.23"
     block: ""
     daily: ""
   }
@@ -630,7 +605,6 @@ def "test http cost source skips blocks, queries endpoint, and renders combined 
   let second = (invoke-statusline $dir --base-url $base_url)
   assert equal $second.run.exit_code 0 $second.run.stderr
   assert equal $second.fields {
-    sess: ""
     block: ""
     daily: "Today: $40.75 / $198.11"
   }
@@ -667,7 +641,6 @@ def "test http fallback renders single Today and non-matching URL stays local" [
   invoke-statusline $dir_local --base-url $base_url --curl-mode "fail" | ignore
   let local_only = (invoke-statusline $dir_local --base-url $base_url --curl-mode "fail")
   assert equal $local_only.fields {
-    sess: ""
     block: ""
     daily: "Today: $40.75"
   }
@@ -682,7 +655,6 @@ def "test http fallback renders single Today and non-matching URL stays local" [
   )
   assert equal $unmatched.curl_calls []
   assert equal $unmatched.fields {
-    sess: ""
     block: "Block: $4.50 (2h5m left, $1.75/h)"
     daily: "Today: $8.25"
   }
@@ -693,7 +665,6 @@ def "test command cost source renders Today end-to-end" [] {
   let extra = {
     local: {
       provider: "none"
-      show_block: false
     }
     cost_sources: [
       {
@@ -710,7 +681,6 @@ def "test command cost source renders Today end-to-end" [] {
   let rendered = (invoke-statusline $dir --extra-config $extra)
   assert equal $rendered.run.exit_code 0 $rendered.run.stderr
   assert equal $rendered.fields {
-    sess: ""
     block: ""
     daily: "Today: $12.34"
   }
@@ -752,7 +722,6 @@ def "test detached background refresh returns stale cache without blocking" [] {
   let result = (invoke-statusline $dir --async --lock-held)
   assert equal $result.run.exit_code 0 $result.run.stderr
   assert equal $result.fields {
-    sess: ""
     block: "Block: $4.50 (2h5m left, $1.75/h)"
     daily: "Today: $8.25"
   }

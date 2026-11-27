@@ -60,10 +60,9 @@ Unknown segment names are ignored.
 
 Configures the built-in local usage provider.
 
-| Key          | Type     | Default     | Description                                 |
-| ------------ | -------- | ----------- | ------------------------------------------- |
-| `provider`   | `string` | `"ccusage"` | `"ccusage"` or `"none"`                     |
-| `show_block` | `bool`   | `true`      | Fetch and render the active `block` segment |
+| Key        | Type     | Default     | Description             |
+| ---------- | -------- | ----------- | ----------------------- |
+| `provider` | `string` | `"ccusage"` | `"ccusage"` or `"none"` |
 
 ### `[models]`
 
@@ -136,11 +135,11 @@ Runs an external command and reads a USD cost from stdout.
 
 #### `[cost_sources.behavior]`
 
-| Key          | Type       | Default                | Description                                                     |
-| ------------ | ---------- | ---------------------- | --------------------------------------------------------------- |
-| `show_block` | `bool`     | `[local].show_block`   | Per-source override for block display while this source matches |
-| `cache_ttl`  | `duration` | `[defaults].cache_ttl` | Per-source cache TTL override                                   |
-| `max_stale`  | `duration` | `[defaults].max_stale` | Per-source max stale age override                               |
+| Key          | Type       | Default                | Description                                                          |
+| ------------ | ---------- | ---------------------- | -------------------------------------------------------------------- |
+| `show_block` | `bool`     | `true`                 | Set to `false` to hide the `block` segment while this source matches |
+| `cache_ttl`  | `duration` | `[defaults].cache_ttl` | Per-source cache TTL override                                        |
+| `max_stale`  | `duration` | `[defaults].max_stale` | Per-source max stale age override                                    |
 
 ## Template variables
 
@@ -195,7 +194,6 @@ max_stale = "15m"
 ```toml
 [local]
 provider = "none"
-show_block = false
 
 [[cost_sources]]
 id = "custom-cli"
