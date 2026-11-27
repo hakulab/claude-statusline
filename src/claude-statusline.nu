@@ -3,8 +3,7 @@
 # ==================================================================================================
 # Claude Code Status Line
 # ==================================================================================================
-# Renders configurable rows of segments (default: dir + git on row 1; model, context, block, today,
-# and time on row 2) with lazy execution and stale-while-revalidate cost caching.
+# Renders configurable rows of segments with lazy execution and stale-while-revalidate cost caching.
 # ==================================================================================================
 
 use ./cache.nu [read-cached write-cache]
