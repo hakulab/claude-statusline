@@ -14,6 +14,7 @@ Opus 5.5 (1M) high | Ctx: 42% (420k/1000k) | Block: $4.50 (2h5m left, $1.75/h) |
 - **Non-blocking caching**: `ccusage` and external cost providers refresh in detached background processes behind `flock --nonblock` locks while stale cached values are served.
 - **Lazy execution**: `git`, `ccusage blocks`, and cost providers run only when the configured layout uses the segments that need them.
 - **Configurable layout**: arrange [built-in segments](docs/configuration.md#built-in-segments) across any number of rows, add model aliases, or plug in HTTP or command cost providers.
+- **Customizable themes**: choose from built-in presets (`ansi`, `catppuccin-mocha`, `catppuccin-latte`), override individual semantic color slots, and disable ANSI output via `NO_COLOR`.
 
 ## Install
 
@@ -63,7 +64,7 @@ Point `statusLine.command` in `~/.claude/settings.json` to `claude-statusline`:
 
 ## Configuration
 
-Personal Claude Code subscriptions work without a configuration file. See [docs/configuration.md](docs/configuration.md) to customize rows, separators, model aliases, Home Manager `programs.claude-statusline.settings`, or external HTTP and command cost providers.
+Personal Claude Code subscriptions work without a configuration file. See [docs/configuration.md](docs/configuration.md) to customize rows, separators, themes, model aliases, Home Manager `programs.claude-statusline.settings`, or external HTTP and command cost providers.
 
 ## Development
 

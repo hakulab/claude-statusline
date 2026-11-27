@@ -1,5 +1,6 @@
 cacert
 cachix
+catppuccin
 ccusage
 cdpath
 claude
@@ -26,6 +27,7 @@ pname
 precommit
 prek
 readlink
+rrggbb
 sess
 shellcheck
 shfmt
@@ -33,6 +35,7 @@ statusline
 stdenv
 substituters
 testlib
+truecolor
 tzdata
 tzdir
 worktree

@@ -43,6 +43,10 @@ def "test load-config returns defaults when default path is absent" [] {
     separator: " | "
     separators: []
   }
+  assert equal $cfg.theme {
+    preset: "ansi"
+    overrides: {}
+  }
 }
 
 def "test load-config merges TOML defaults, layout, models, and cost sources" [] {
@@ -62,6 +66,13 @@ def "test load-config merges TOML defaults, layout, models, and cost sources" []
     ]
     separator = " · "
     separators = [" "]
+
+    [theme]
+    preset = "catppuccin-latte"
+
+    [theme.overrides]
+    warning = "#fe640b"
+    accent = { fg = "#1e66f5", bold = false }
 
     [local]
     provider = "ccusage"
@@ -103,6 +114,16 @@ def "test load-config merges TOML defaults, layout, models, and cost sources" []
     separator: " · "
     separators: [" "]
   }
+  assert equal $cfg.theme {
+    preset: "catppuccin-latte"
+    overrides: {
+      warning: "#fe640b"
+      accent: {
+        fg: "#1e66f5"
+        bold: false
+      }
+    }
+  }
   assert equal $cfg.models {"claude-opus-5-5": "Opus 5.5"}
   assert equal ($cfg.cost_sources | length) 1
   assert equal $cfg.cost_sources.0.behavior {
@@ -132,6 +153,15 @@ def "test load-config errors on missing explicit file or non-record payload" [] 
     $e.msg
   }
   assert ($shape_err | str contains "must contain a table or record")
+
+  let bad_theme = ($dir | path join "bad-theme.toml")
+  'theme = "catppuccin-latte"' | save --force --raw $bad_theme
+  let bad_cfg = (load-config $bad_theme)
+  assert equal $bad_cfg.theme {
+    preset: "ansi"
+    overrides: {}
+    invalid_section: "string"
+  }
 }
 
 # --------------------------------------------------------------------------------------------------

@@ -5,6 +5,7 @@
 # ==================================================================================================
 
 use std/assert
+use ../theme.nu [resolve-theme]
 use ./context.nu [format-context]
 
 def "test format-context handles empty and populated token usage with color thresholds" [] {
@@ -47,4 +48,20 @@ def "test format-context handles empty and populated token usage with color thre
   assert ($high_rendered | str contains (ansi red))
 
   assert equal (format-context {} | ansi strip) "Ctx: 0%"
+}
+
+def "test format-context applies custom and empty themes" [] {
+  let mocha = (resolve-theme {preset: "catppuccin-mocha"}).theme
+  let plain = (resolve-theme {} {NO_COLOR: "1"}).theme
+  let high = {
+    context_window: {
+      context_window_size: 200000
+      current_usage: {input_tokens: 170000}
+    }
+  }
+
+  let styled = (format-context $high --theme $mocha)
+  assert ($styled | str contains $mocha.muted)
+  assert ($styled | str contains $mocha.error)
+  assert equal (format-context $high --theme $plain) "Ctx: 85% (170k/200k)"
 }

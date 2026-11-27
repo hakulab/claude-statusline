@@ -56,6 +56,52 @@ Row 0 defaults to `" "` unless overridden by `separators[0]`. Rows beyond the le
 
 Unknown segment names are ignored.
 
+### `[theme]`
+
+Selects a color preset and optional per-slot style overrides.
+
+| Key         | Type     | Default  | Description                                                               |
+| ----------- | -------- | -------- | ------------------------------------------------------------------------- |
+| `preset`    | `string` | `"ansi"` | Built-in palette: `"ansi"`, `"catppuccin-mocha"`, or `"catppuccin-latte"` |
+| `overrides` | `table`  | `{}`     | Per-slot style patches applied on top of `preset`                         |
+
+Invalid preset names or malformed overrides print a warning to stderr and fall back cleanly so the status line continues to render.
+
+Setting `NO_COLOR` to any non-empty value disables all ANSI escape sequences regardless of `[theme]`, following [no-color.org](https://no-color.org/). An unset or empty `NO_COLOR` leaves colors enabled.
+
+#### Semantic slots
+
+| Slot        | Used by                                                          |
+| ----------- | ---------------------------------------------------------------- |
+| `accent`    | `dir`                                                            |
+| `info`      | `model`, `session`, `block` cost, `today`                        |
+| `success`   | `git` branch, `context` (< 50%)                                  |
+| `warning`   | `git` status marks, `context` (50–79%), `block` remaining / rate |
+| `error`     | `context` (≥ 80%)                                                |
+| `mode`      | `mode` vim indicator                                             |
+| `muted`     | `Ctx:`, `Sess:`, `Block:`, `Today:` labels and `time`            |
+| `separator` | Non-whitespace row separator                                     |
+
+#### `[theme.overrides]`
+
+Each key in `[theme.overrides]` names one of the eight semantic slots and accepts either:
+
+- A **bare color string** (`warning = "#fe640b"`), which patches `fg` and preserves the preset's `bg` and modifiers.
+- An **inline table** (`accent = { fg = "#1e66f5", bold = false }`), which patches only the listed fields (`fg`, `bg`, `bold`, `dim`, `italic`, `underlined`, `reversed`). Omitted fields inherit from the preset. Setting a modifier to `false` clears it, and setting `fg` or `bg` to `"reset"` (or `"default"`) clears that channel to the terminal default.
+
+When overriding `muted` or `separator` with a hex color on top of the `ansi` preset, set `dim = false` if you do not want the terminal to dim the RGB value.
+
+Color values are case-insensitive and trim surrounding whitespace:
+
+| Form              | Example      | Description                                                                 |
+| ----------------- | ------------ | --------------------------------------------------------------------------- |
+| 6-digit hex       | `"#89b4fa"`  | 24-bit truecolor RGB (3-digit `#fff` is rejected)                           |
+| ANSI 16 named     | `"blue"`     | Standard (`black`–`white`) and bright (`bright_black`–`bright_white`) names |
+| Indexed 256-color | `"ansi:174"` | 256-color palette index `0`–`255`                                           |
+| Terminal default  | `"reset"`    | Clears `fg` or `bg` to the terminal default (`"default"` is also accepted)  |
+
+Accepted ANSI 16 aliases include `purple`, `gray` / `grey`, `dark_gray` / `dark_grey`, and `light_*` forms (`light_red`, `light_blue`, `light_purple`, `light_white`, etc.).
+
 ### `[local]`
 
 Configures the built-in local usage provider.
@@ -164,6 +210,18 @@ Omitting `git`, `block`, and `today` skips spawning `git` and `ccusage`:
 [layout]
 rows = [["dir", "model", "context", "session", "time"]]
 separators = [" · "]
+```
+
+### Theme preset with overrides
+
+```toml
+[theme]
+preset = "catppuccin-latte"
+
+[theme.overrides]
+warning = "#fe640b"
+accent = { fg = "#1e66f5", bold = false }
+muted = { fg = "#6c6f85", dim = false }
 ```
 
 ### Remote HTTP billing provider

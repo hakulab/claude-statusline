@@ -3,8 +3,10 @@
 # ==================================================================================================
 
 use ../format.nu [labeled]
+use ../theme.nu [default-theme]
 
-export def format-context [input: record]: nothing -> string {
+export def format-context [input: record, --theme: record]: nothing -> string {
+  let t = ($theme | default (default-theme))
   let usage = ($input.context_window?.current_usage? | default {})
   let used = (
     ["input_tokens" "cache_creation_input_tokens" "cache_read_input_tokens"]
@@ -14,16 +16,16 @@ export def format-context [input: record]: nothing -> string {
   let size = ($input.context_window?.context_window_size? | default 0)
 
   if $size == 0 {
-    labeled "Ctx" "0%"
+    labeled "Ctx" "0%" $t.success $t.muted
   } else {
     let percent = ($used * 100 // $size)
-    let color = if $percent >= 80 {
-      "red"
+    let style = if $percent >= 80 {
+      $t.error
     } else if $percent >= 50 {
-      "yellow"
+      $t.warning
     } else {
-      "green"
+      $t.success
     }
-    labeled "Ctx" $"($percent)% \(($used // 1000)k/($size // 1000)k)" $color
+    labeled "Ctx" $"($percent)% \(($used // 1000)k/($size // 1000)k)" $style $t.muted
   }
 }

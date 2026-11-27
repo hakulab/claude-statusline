@@ -2,16 +2,21 @@
 # Terminal Formatting Helpers
 # ==================================================================================================
 
-export def dim [text: string]: nothing -> string {
-  $"(ansi white_dimmed)($text)(ansi reset)"
+export def paint [text: string, style: string]: nothing -> string {
+  if ($style | is-empty) {
+    $text
+  } else {
+    $"($style)($text)(ansi reset)"
+  }
 }
 
-export def paint [text: string, color: string]: nothing -> string {
-  $"(ansi $color)($text)(ansi reset)"
-}
-
-export def labeled [label: string, value: string, color: string = "green"]: nothing -> string {
-  $"(dim $"($label):") (paint $value $color)"
+export def labeled [
+  label: string
+  value: string
+  value_style: string
+  label_style: string
+]: nothing -> string {
+  $"(paint $"($label):" $label_style) (paint $value $value_style)"
 }
 
 export def usd [amount: float]: nothing -> string {
