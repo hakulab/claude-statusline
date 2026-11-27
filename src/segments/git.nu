@@ -80,7 +80,7 @@ export def format-git-info [cwd: string, --theme: record]: nothing -> string {
     return ""
   }
 
-  let t = ($theme | default (default-theme))
+  let t = ($theme | default { default-theme })
   let work = (work-counts ($output | skip 1))
   let marks = (
     [

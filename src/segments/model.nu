@@ -37,7 +37,7 @@ export def format-model [input: record, models: record, --theme: record]: nothin
   if ($name | is-empty) {
     ""
   } else {
-    let t = ($theme | default (default-theme))
+    let t = ($theme | default { default-theme })
     paint $name $t.info
   }
 }

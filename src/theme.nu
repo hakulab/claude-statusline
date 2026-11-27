@@ -2,6 +2,10 @@
 # Theme Presets, Color Parsing, and SGR Compilation
 # ==================================================================================================
 
+# --------------------------------------------------------------------------------------------------
+# Constants and Presets
+# --------------------------------------------------------------------------------------------------
+
 const ANSI_FG_CODES = {
   black: 30
   red: 31
@@ -53,14 +57,6 @@ const MODIFIER_CODES = [
   ["italic" "3"]
   ["underlined" "4"]
   ["reversed" "7"]
-]
-
-const MODIFIER_NAMES = [
-  "bold"
-  "dim"
-  "italic"
-  "underlined"
-  "reversed"
 ]
 
 const EMPTY_STYLE = {
@@ -126,6 +122,10 @@ const PRESETS = {
   }
 }
 
+# --------------------------------------------------------------------------------------------------
+# Color Parsing
+# --------------------------------------------------------------------------------------------------
+
 def parse-color [raw: string, channel: string]: nothing -> record {
   let norm = ($raw | str trim | str lowercase)
   if $norm == "reset" or $norm == "default" {
@@ -163,7 +163,7 @@ def parse-color [raw: string, channel: string]: nothing -> record {
   }
 
   # Indexed 256-color (ansi:0..255).
-  let indexed = ($norm | parse --regex '^ansi:(?<n>\d+)$' | get -o 0)
+  let indexed = ($norm | parse --regex '^ansi:(?<n>[0-9]+)$' | get -o 0)
   if $indexed != null {
     let n = (
       try {
@@ -190,6 +190,10 @@ def parse-color [raw: string, channel: string]: nothing -> record {
     error: $"invalid color '($raw)'"
   }
 }
+
+# --------------------------------------------------------------------------------------------------
+# SGR Compilation
+# --------------------------------------------------------------------------------------------------
 
 def compile-slot [style: record]: nothing -> string {
   mut codes: list<string> = []
@@ -226,6 +230,10 @@ def compile-palette [palette: record]: nothing -> record {
   }
   $compiled
 }
+
+# --------------------------------------------------------------------------------------------------
+# Slot Patching
+# --------------------------------------------------------------------------------------------------
 
 def patch-slot [slot: string, base: record, patch: any]: nothing -> record {
   let kind = ($patch | describe)
@@ -277,7 +285,7 @@ def patch-slot [slot: string, base: record, patch: any]: nothing -> record {
       }
       let next_val = if $parsed.sgr == null { null } else { $field.value }
       $next = ($next | upsert $field.key $next_val)
-    } else if $field.key in $MODIFIER_NAMES {
+    } else if $field.key in $MODIFIER_CODES.name {
       let val_type = ($field.value | describe)
       if $val_type != "bool" {
         return {
@@ -300,6 +308,10 @@ def patch-slot [slot: string, base: record, patch: any]: nothing -> record {
   }
 }
 
+# --------------------------------------------------------------------------------------------------
+# Theme Resolution
+# --------------------------------------------------------------------------------------------------
+
 # Return the compiled default ("ansi") theme record.
 export def default-theme []: nothing -> record {
   compile-palette $PRESETS.ansi
@@ -316,6 +328,10 @@ export def resolve-theme [
     $warnings = (
       $warnings | append $"theme section must be a table, got ($theme_cfg.invalid_section)"
     )
+  }
+
+  for key in ($theme_cfg | columns | where $it not-in ["preset" "overrides" "invalid_section"]) {
+    $warnings = ($warnings | append $"unknown theme key '($key)' \(valid: preset, overrides\)")
   }
 
   let raw_preset = ($theme_cfg.preset? | default "ansi")

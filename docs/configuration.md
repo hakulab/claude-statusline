@@ -220,8 +220,8 @@ preset = "catppuccin-latte"
 
 [theme.overrides]
 warning = "#fe640b"
-accent = { fg = "#1e66f5", bold = false }
-muted = { fg = "#6c6f85", dim = false }
+accent = { fg = "#7287fd", bold = false }
+muted = { fg = "#5c5f77", italic = true }
 ```
 
 ### Remote HTTP billing provider

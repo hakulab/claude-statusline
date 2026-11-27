@@ -146,7 +146,7 @@ def "test color parsing handles hex, ANSI 16 aliases, 256-color, bg, and reset" 
       expected: (ansi --escape "38;2;30;102;245;100m")
     }
     {
-      name: "bg 256-color and hex"
+      name: "bg 256-color with fg reset"
       override: {
         fg: "reset"
         bg: "ansi:236"
@@ -367,6 +367,17 @@ def "test invalid theme config warns and falls back while keeping valid override
       warning_match: "theme section must be a table"
       slot: "info"
       expected: (ansi cyan)
+    }
+    {
+      name: "unknown top-level theme key"
+      cfg: {
+        base: "catppuccin-latte"
+        preset: "ansi"
+        overrides: {info: "green"}
+      }
+      warning_match: "unknown theme key 'base'"
+      slot: "info"
+      expected: (ansi green)
     }
   ]
 

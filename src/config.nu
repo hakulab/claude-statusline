@@ -79,10 +79,11 @@ def normalize-theme [raw: any]: nothing -> record {
       invalid_section: ($raw | describe)
     }
   }
-  {
-    preset: ($raw.preset? | default "ansi")
-    overrides: ($raw.overrides? | default {})
-  }
+  (
+    $raw
+    | upsert preset ($raw.preset? | default "ansi")
+    | upsert overrides ($raw.overrides? | default {})
+  )
 }
 
 def normalize-local [raw: record]: nothing -> record {

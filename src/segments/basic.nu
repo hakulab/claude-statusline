@@ -15,7 +15,7 @@ export def format-dir [input: record, home: string = "", --theme: record]: nothi
   if ($cwd | is-empty) {
     return ""
   }
-  let t = ($theme | default (default-theme))
+  let t = ($theme | default { default-theme })
   let effective_home = if ($home | is-not-empty) {
     $home
   } else {
@@ -34,13 +34,13 @@ export def format-mode [input: record, --theme: record]: nothing -> string {
   if ($mode | is-empty) {
     ""
   } else {
-    let t = ($theme | default (default-theme))
+    let t = ($theme | default { default-theme })
     paint $mode $t.mode
   }
 }
 
 export def format-time [now?: datetime, --theme: record]: nothing -> string {
-  let t = ($theme | default (default-theme))
+  let t = ($theme | default { default-theme })
   let timestamp = ($now | default (date now))
   paint ($timestamp | format date "%H:%M") $t.muted
 }

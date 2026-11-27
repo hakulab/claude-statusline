@@ -153,6 +153,25 @@ def "test load-config errors on missing explicit file or non-record payload" [] 
     $e.msg
   }
   assert ($shape_err | str contains "must contain a table or record")
+}
+
+def "test load-config preserves unknown theme keys and marks non-record theme sections" [] {
+  let dir = (mktemp --directory)
+  let unknown_key = ($dir | path join "unknown-theme-key.toml")
+  (
+    '
+    [theme]
+    base = "catppuccin-latte"
+    '
+    | str dedent
+    | save --force --raw $unknown_key
+  )
+  let unknown_cfg = (load-config $unknown_key)
+  assert equal $unknown_cfg.theme {
+    base: "catppuccin-latte"
+    preset: "ansi"
+    overrides: {}
+  }
 
   let bad_theme = ($dir | path join "bad-theme.toml")
   'theme = "catppuccin-latte"' | save --force --raw $bad_theme

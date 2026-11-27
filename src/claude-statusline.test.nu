@@ -836,9 +836,9 @@ def "test invalid theme warns on stderr, still renders, and refresh skips theme 
       ^$nu.current-exe
         --no-config-file
         $SCRIPT
-        --config $result.config
-        --cache-dir $result.cache_dir
-        --refresh "ccusage-daily"
+          --config $result.config
+          --cache-dir $result.cache_dir
+          --refresh "ccusage-daily"
       | complete
     )
   }

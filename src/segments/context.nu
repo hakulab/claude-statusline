@@ -6,7 +6,7 @@ use ../format.nu [labeled]
 use ../theme.nu [default-theme]
 
 export def format-context [input: record, --theme: record]: nothing -> string {
-  let t = ($theme | default (default-theme))
+  let t = ($theme | default { default-theme })
   let usage = ($input.context_window?.current_usage? | default {})
   let used = (
     ["input_tokens" "cache_creation_input_tokens" "cache_read_input_tokens"]

@@ -14,7 +14,7 @@ export def format-session [input: record, --theme: record]: nothing -> string {
   if $amount == null {
     ""
   } else {
-    let t = ($theme | default (default-theme))
+    let t = ($theme | default { default-theme })
     labeled "Sess" (usd $amount) $t.info $t.muted
   }
 }
@@ -36,7 +36,7 @@ export def format-block [data: record, --theme: record]: nothing -> string {
     return ""
   }
 
-  let t = ($theme | default (default-theme))
+  let t = ($theme | default { default-theme })
   let remaining = ($data.remaining_minutes? | default 0)
   let burn_rate = ($data.burn_rate? | default 0.0)
   let details = (
@@ -76,7 +76,7 @@ export def format-today [
   if ($values | is-empty) {
     ""
   } else {
-    let t = ($theme | default (default-theme))
+    let t = ($theme | default { default-theme })
     labeled "Today" ($values | str join " / ") $t.info $t.muted
   }
 }
