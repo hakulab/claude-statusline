@@ -21,6 +21,10 @@ const DEFAULT_THEME = {
   overrides: {}
 }
 
+# --------------------------------------------------------------------------------------------------
+# Environment Detection
+# --------------------------------------------------------------------------------------------------
+
 const OFFICIAL_ANTHROPIC_BASE_URL = "https://api.anthropic.com"
 
 const NON_SUBSCRIPTION_ENV_KEYS = [

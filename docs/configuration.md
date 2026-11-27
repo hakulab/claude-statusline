@@ -56,7 +56,11 @@ Row 0 defaults to `" "` unless overridden by `separators[0]`. Rows beyond the le
 
 Unknown segment names are ignored.
 
-The `block` segment is automatically hidden — and `ccusage blocks` is skipped — in non-subscription environments: when `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` is non-empty, when `ANTHROPIC_BASE_URL` points anywhere other than `https://api.anthropic.com`, or when `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, or `CLAUDE_CODE_USE_FOUNDRY` is set to a truthy value (`1`, `true`, `yes`, or `on`, case-insensitive).
+The `block` segment is automatically hidden in non-subscription environments whenever any of the following applies:
+
+- `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` is set and non-blank.
+- `ANTHROPIC_BASE_URL` points to an endpoint other than `https://api.anthropic.com`.
+- `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, or `CLAUDE_CODE_USE_FOUNDRY` is enabled (`1`, `true`, `yes`, or `on`, case-insensitive).
 
 ### `[theme]`
 
@@ -226,7 +230,7 @@ muted = { fg = "#5c5f77", italic = true }
 
 ### Remote HTTP billing provider
 
-A custom `ANTHROPIC_BASE_URL` automatically hides the `block` segment, so no extra setting is needed.
+Setting `ANTHROPIC_BASE_URL` to a custom endpoint hides the `block` segment automatically.
 
 ```toml
 [[cost_sources]]
