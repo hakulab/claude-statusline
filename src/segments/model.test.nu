@@ -45,8 +45,8 @@ def "test model-name maps aliases, 1M context, effort, and fallbacks" [] {
   assert equal (model-name $id_fallback $models) "custom-model"
   assert equal (format-model {} $models) ""
 
-  let mocha = (resolve-theme {preset: "catppuccin-mocha"}).theme
+  let latte = (resolve-theme {preset: "catppuccin-latte"}).theme
   let plain = (resolve-theme {} {NO_COLOR: "1"}).theme
-  assert (format-model $id_fallback $models --theme $mocha | str contains $mocha.info)
+  assert (format-model $id_fallback $models --theme $latte | str contains $latte.info)
   assert equal (format-model $id_fallback $models --theme $plain) "custom-model"
 }

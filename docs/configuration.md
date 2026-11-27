@@ -107,7 +107,7 @@ Color values are case-insensitive and trim surrounding whitespace:
 | Indexed 256-color | `"ansi:174"` | [8-bit 256-color](https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit) palette index `0`–`255`                                            |
 | Terminal default  | `"reset"`    | Clears `fg` or `bg` to the terminal default (`"default"` is also accepted)                                                                 |
 
-ANSI 16 names accept standard and `bright_*` names plus common aliases (`purple`, `gray` / `grey`, `dark_gray` / `dark_grey`, `light_*`), matching [Nushell's `ansi` color names](https://www.nushell.sh/commands/docs/ansi.html).
+Accepted ANSI 16 names are `black`, `red`, `green`, `yellow`, `blue`, `magenta` (`purple`), `cyan`, `white` (`gray` / `grey`), and their `bright_*` variants (aliases: `dark_gray` / `dark_grey` for `bright_black`, `light_*` for `bright_red`–`bright_white`, and `bright_purple` / `light_purple` for `bright_magenta`).
 
 ### `[local]`
 
