@@ -15,9 +15,9 @@ def "test format-session formats cost, zero, and omits missing or invalid values
 }
 
 def "test format-remaining and format-block format active and inactive blocks" [] {
-  assert equal (format-remaining 0) ""
   assert equal (format-remaining 45) "45m left"
   assert equal (format-remaining 125) "2h5m left"
+  assert equal (format-remaining 0) ""
 
   let full_block = {
     has_block: true

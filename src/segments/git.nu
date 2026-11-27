@@ -33,7 +33,9 @@ def track-count [track: string, label: string]: nothing -> int {
 
 # `## <branch>...<upstream> [ahead N, behind M]`, where everything after the branch is optional. A
 # detached HEAD reads `## HEAD (no branch)` and an unborn one `## No commits yet on <branch>`.
-export def parse-branch [header: string]: nothing -> record<branch: string, ahead: int, behind: int> {
+export def parse-branch [
+  header: string
+]: nothing -> record<branch: string, ahead: int, behind: int> {
   if $header == "## HEAD (no branch)" {
     return $NO_BRANCH
   }

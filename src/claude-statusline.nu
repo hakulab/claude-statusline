@@ -21,25 +21,14 @@ use ./segments/model.nu [format-model]
 
 const SCRIPT_PATH = path self
 
+# --------------------------------------------------------------------------------------------------
+# Cache Refresh
+# --------------------------------------------------------------------------------------------------
+
 def default-cache-dir []: nothing -> path {
   let home = ($env.HOME? | default --empty $nu.home-dir)
   let cache_home = ($env.XDG_CACHE_HOME? | default --empty ($home | path join ".cache"))
   $cache_home | path join "claude-statusline"
-}
-
-def read-input []: nothing -> record {
-  # `open /dev/stdin` re-opens fd 0 by path, which fails with ENXIO when the caller passes a
-  # socket, as Claude Code's spawn does.
-  let raw = (^cat | str trim)
-  if ($raw | is-empty) {
-    return {}
-  }
-  let parsed = (try { $raw | from json } catch { {} })
-  if ($parsed | describe | str starts-with "record") {
-    $parsed
-  } else {
-    {}
-  }
 }
 
 def refresh-source [source_id: string, cache_dir: path, config: record]: nothing -> nothing {
@@ -47,7 +36,7 @@ def refresh-source [source_id: string, cache_dir: path, config: record]: nothing
   if $entry == null {
     error make {msg: $"unknown cost source: ($source_id)"}
   }
-  let spec = (source-cache-spec $entry.id)
+
   let source_cfg = $entry.source
   let kind = ($source_cfg.type? | default "")
   let data = match $kind {
@@ -55,6 +44,7 @@ def refresh-source [source_id: string, cache_dir: path, config: record]: nothing
     "command" => { fetch-command $source_cfg $config.defaults.timeout $"cost source ($entry.id)" }
     _ => { error make {msg: $"unsupported cost source type for ($entry.id): ($kind)"} }
   }
+  let spec = (source-cache-spec $entry.id)
   write-cache ($cache_dir | path join $spec.cache_name) $data
 }
 
@@ -78,6 +68,25 @@ def refresh-target [target: string, cache_dir: path, config: record]: nothing ->
   }
 }
 
+# --------------------------------------------------------------------------------------------------
+# Input and Rendering
+# --------------------------------------------------------------------------------------------------
+
+def read-input []: nothing -> record {
+  # `open /dev/stdin` re-opens fd 0 by path, which fails with ENXIO when the caller passes a
+  # socket, as Claude Code's spawn does.
+  let raw = (^cat | str trim)
+  if ($raw | is-empty) {
+    return {}
+  }
+  let parsed = (try { $raw | from json } catch { {} })
+  if ($parsed | describe | str starts-with "record") {
+    $parsed
+  } else {
+    {}
+  }
+}
+
 def source-ready [entry: record, env_vars: record]: nothing -> bool {
   let source_cfg = $entry.source
   match ($source_cfg.type? | default "") {
@@ -89,19 +98,6 @@ def source-ready [entry: record, env_vars: record]: nothing -> bool {
     "command" => { $source_cfg.argv? | default [] | is-not-empty }
     _ => false
   }
-}
-
-def join-row [parts: list<string>, separator: string]: nothing -> string {
-  let non_empty = ($parts | compact --empty)
-  if ($non_empty | is-empty) {
-    return ""
-  }
-  let sep = if ($separator | str trim | is-empty) {
-    $separator
-  } else {
-    dim $separator
-  }
-  $non_empty | str join $sep
 }
 
 def render-segment [
@@ -126,6 +122,23 @@ def render-segment [
     _ => ""
   }
 }
+
+def join-row [parts: list<string>, separator: string]: nothing -> string {
+  let non_empty = ($parts | compact --empty)
+  if ($non_empty | is-empty) {
+    return ""
+  }
+  let sep = if ($separator | str trim | is-empty) {
+    $separator
+  } else {
+    dim $separator
+  }
+  $non_empty | str join $sep
+}
+
+# --------------------------------------------------------------------------------------------------
+# Entry Point
+# --------------------------------------------------------------------------------------------------
 
 # Render a configurable Claude Code status line from JSON on stdin.
 def main [

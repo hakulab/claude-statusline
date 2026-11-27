@@ -2,7 +2,11 @@
 # Time, Duration, and Template Helpers
 # ==================================================================================================
 
-# Normalize shorthand units (`60s`, `15m`, `1h`) to Nushell duration syntax (`60sec`, `15min`, `1hr`).
+# --------------------------------------------------------------------------------------------------
+# Duration Parsing and Conversion
+# --------------------------------------------------------------------------------------------------
+
+# Normalize shorthand units (`60s`, `15m`, `1h`) to Nushell syntax (`60sec`, `15min`, `1hr`).
 export def parse-duration [value: any, fallback: duration]: nothing -> duration {
   if $value == null {
     return $fallback
@@ -52,6 +56,10 @@ export def duration-seconds [dur: duration]: nothing -> int {
     $secs
   }
 }
+
+# --------------------------------------------------------------------------------------------------
+# Local Day Window and Templates
+# --------------------------------------------------------------------------------------------------
 
 export def local-day-window []: nothing -> record {
   let now = (date now)

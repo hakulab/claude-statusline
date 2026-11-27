@@ -106,7 +106,6 @@
         dk = devkit.lib.mkLib pkgs;
 
         commonInputs = runtimeInputs pkgs;
-
         claudeStatusline = mkClaudeStatusline pkgs;
 
         preCommit = dk.preCommit {

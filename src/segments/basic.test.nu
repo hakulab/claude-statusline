@@ -8,9 +8,8 @@ use std/assert
 use ./basic.nu [format-dir format-mode format-time]
 
 def "test format-dir renders basename, home tilde, root, cwd fallback, and omits empty cwd" [] {
-  assert equal (format-dir {workspace: {current_dir: "/tmp/my-project"}} "/home/user" | ansi strip) (
-    "my-project"
-  )
+  let dir_in = {workspace: {current_dir: "/tmp/my-project"}}
+  assert equal (format-dir $dir_in "/home/user" | ansi strip) "my-project"
   assert equal (format-dir {workspace: {current_dir: "/home/user"}} "/home/user" | ansi strip) "~"
   assert equal (format-dir {workspace: {current_dir: "/"}} "/home/user" | ansi strip) "/"
   assert equal (format-dir {cwd: "/tmp/fallback"} "/home/user" | ansi strip) "fallback"

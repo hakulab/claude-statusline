@@ -7,12 +7,18 @@ use ./time.nu [parse-duration]
 const DEFAULT_CACHE_TTL = 60sec
 const DEFAULT_MAX_STALE = 15min
 const DEFAULT_TIMEOUT = 5sec
+
 const DEFAULT_ROWS = [
   ["dir" "git"]
   ["model" "context" "block" "today" "time"]
 ]
+
 const DEFAULT_ROW0_SEPARATOR = " "
 const DEFAULT_SEPARATOR = " | "
+
+# --------------------------------------------------------------------------------------------------
+# Defaults and Config Loading
+# --------------------------------------------------------------------------------------------------
 
 export def default-config-path []: nothing -> path {
   let home = ($env.HOME? | default --empty $nu.home-dir)
@@ -112,16 +118,9 @@ export def load-config [config_path: string = ""]: nothing -> record {
   }
 }
 
-export def row-separator [layout: record, index: int]: nothing -> string {
-  let override = ($layout.separators | get -o $index)
-  if $override != null {
-    $override
-  } else if $index == 0 {
-    $DEFAULT_ROW0_SEPARATOR
-  } else {
-    $layout.separator
-  }
-}
+# --------------------------------------------------------------------------------------------------
+# Cost Source Matching and Block Visibility
+# --------------------------------------------------------------------------------------------------
 
 # For HTTP(S) prefixes, require an exact match or a `/` boundary so `https://api.example.com`
 # does not match `https://api.example.com.evil.test`.
@@ -168,4 +167,19 @@ export def active-cost-sources [config: record, env_vars: record]: nothing -> li
 
 export def should-show-block [matched_sources: list<record>]: nothing -> bool {
   not ($matched_sources | any {|entry| $entry.behavior.show_block? == false })
+}
+
+# --------------------------------------------------------------------------------------------------
+# Layout Separators
+# --------------------------------------------------------------------------------------------------
+
+export def row-separator [layout: record, index: int]: nothing -> string {
+  let override = ($layout.separators | get -o $index)
+  if $override != null {
+    $override
+  } else if $index == 0 {
+    $DEFAULT_ROW0_SEPARATOR
+  } else {
+    $layout.separator
+  }
 }

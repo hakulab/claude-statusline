@@ -10,12 +10,12 @@ export const CCUSAGE_SPEC = {
   refresh: "ccusage"
   fields: [
     "date"
-    "has_block"
     "has_daily"
+    "daily_cost"
+    "has_block"
     "block_cost"
     "remaining_minutes"
     "burn_rate"
-    "daily_cost"
   ]
 }
 
@@ -46,7 +46,7 @@ export def ccusage-json [args: list<string>]: nothing -> record {
 export def current-ccusage [--with-blocks]: nothing -> record {
   let today = (date now | format date "%Y%m%d")
   let block_fields = if $with_blocks {
-    let blocks = (ccusage-json [blocks --active])
+    let blocks = (ccusage-json ["blocks" "--active"])
     let active = (
       $blocks.blocks?
       | default []
@@ -63,9 +63,9 @@ export def current-ccusage [--with-blocks]: nothing -> record {
     {}
   }
   let daily = (ccusage-json [
-    daily
-      --since $today
-      --until $today
+    "daily"
+      "--since" $today
+      "--until" $today
   ])
   let daily_cost = $daily.totals?.totalCost?
 

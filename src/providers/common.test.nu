@@ -7,20 +7,6 @@
 use std/assert
 use ./common.nu [extract-cost non-empty-file parse-json-record source-cache-spec]
 
-def "test source-cache-spec sanitizes source ids" [] {
-  let spec = (source-cache-spec "team/billing:v1")
-  assert equal $spec {
-    cache_name: "statusline-source-team_billing_v1.json"
-    lock_name: "statusline-source-team_billing_v1.lock"
-    refresh: "source:team/billing:v1"
-    fields: [
-      "date"
-      "has_cost"
-      "daily_cost"
-    ]
-  }
-}
-
 def "test non-empty-file distinguishes populated, blank, and missing files" [] {
   let dir = (mktemp --directory)
   let filled = ($dir | path join "token")
@@ -62,11 +48,28 @@ def "test extract-cost resolves nested floats and rejects missing, bool, or non-
   let empty_err = try { extract-cost $payload [] "probe"; "" } catch {|e| $e.msg }
   assert equal $empty_err "probe extract path must not be empty"
 
-  let missing_err = try { extract-cost $payload ["usage" "missing"] "probe"; "" } catch {|e| $e.msg }
+  let missing_err = try {
+    extract-cost $payload ["usage" "missing"] "probe"
+    ""
+  } catch {|e| $e.msg }
   assert equal $missing_err "probe response missing usage.missing"
 
   for field in ["label" "flag" "nan_val" "inf_val" "neg_inf_val"] {
     let type_err = try { extract-cost $payload ["usage" $field] "probe"; "" } catch {|e| $e.msg }
     assert equal $type_err $"probe usage.($field) is not numeric"
+  }
+}
+
+def "test source-cache-spec sanitizes source ids" [] {
+  let spec = (source-cache-spec "team/billing:v1")
+  assert equal $spec {
+    cache_name: "statusline-source-team_billing_v1.json"
+    lock_name: "statusline-source-team_billing_v1.lock"
+    refresh: "source:team/billing:v1"
+    fields: [
+      "date"
+      "has_cost"
+      "daily_cost"
+    ]
   }
 }

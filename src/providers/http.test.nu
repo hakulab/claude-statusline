@@ -19,12 +19,32 @@ def "test auth-ready validates none, file, env, and unknown auth configs" [] {
 
   assert (auth-ready {} {})
   assert (auth-ready {type: "none"} {})
-  assert (auth-ready {type: "bearer_file", path: $token} {})
-  assert not (auth-ready {type: "bearer_file", path: $blank} {})
-  assert (auth-ready {type: "header_file", header: "X-API-Key", path: $token} {})
-  assert not (auth-ready {type: "header_file", header: "", path: $token} {})
-  assert (auth-ready {type: "bearer_env", env: "API_TOK"} {API_TOK: "secret"})
-  assert not (auth-ready {type: "bearer_env", env: "API_TOK"} {API_TOK: "  "})
+  assert (auth-ready {
+    type: "bearer_file"
+    path: $token
+  } {})
+  assert not (auth-ready {
+    type: "bearer_file"
+    path: $blank
+  } {})
+  assert (auth-ready {
+    type: "header_file"
+    header: "X-API-Key"
+    path: $token
+  } {})
+  assert not (auth-ready {
+    type: "header_file"
+    header: ""
+    path: $token
+  } {})
+  assert (auth-ready {
+    type: "bearer_env"
+    env: "API_TOK"
+  } {API_TOK: "secret"})
+  assert not (auth-ready {
+    type: "bearer_env"
+    env: "API_TOK"
+  } {API_TOK: "  "})
   assert not (auth-ready {type: "unsupported"} {})
 }
 
