@@ -56,6 +56,8 @@ Row 0 defaults to `" "` unless overridden by `separators[0]`. Rows beyond the le
 
 Unknown segment names are ignored.
 
+The `block` segment is automatically hidden — and `ccusage blocks` is skipped — in non-subscription environments: when `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` is non-empty, when `ANTHROPIC_BASE_URL` points anywhere other than `https://api.anthropic.com`, or when `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, or `CLAUDE_CODE_USE_FOUNDRY` is set to a truthy value (`1`, `true`, `yes`, or `on`, case-insensitive).
+
 ### `[theme]`
 
 Selects a color preset and optional per-slot style overrides.
@@ -129,14 +131,13 @@ Overrides display names for raw model IDs (without any trailing `[1m]` suffix), 
 
 ### `[[cost_sources]]`
 
-Defines additional remote or script-backed daily cost providers. Every matching and ready source contributes a value to the `today` segment, joined with `" / "` after any local `ccusage` daily total.
+Defines additional remote or script-backed daily cost providers. Every matching and ready source contributes a value to the `today` segment, joined with `" / "` after any local `ccusage` daily total. Cost sources use `[defaults].cache_ttl` and `[defaults].max_stale` for caching.
 
-Each entry has four fields:
+Each entry has three fields:
 
 - `id` (`string`, required): unique identifier for the source
 - `match` (`table`, optional): environment rules that activate this source
 - `source` (`table`, required): provider type (`"http"` or `"command"`) and its parameters
-- `behavior` (`table`, optional): per-source `show_block`, `cache_ttl`, and `max_stale` overrides
 
 #### `[cost_sources.match]`
 
@@ -186,14 +187,6 @@ Runs an external command and reads a USD cost from stdout.
 | `extract` | `list<string>` | `[]`                 | Optional JSON key path (when empty, stdout is parsed as a float) |
 | `timeout` | `duration`     | `[defaults].timeout` | Per-source timeout override                                      |
 
-#### `[cost_sources.behavior]`
-
-| Key          | Type       | Default                | Description                                                          |
-| ------------ | ---------- | ---------------------- | -------------------------------------------------------------------- |
-| `show_block` | `bool`     | `true`                 | Set to `false` to hide the `block` segment while this source matches |
-| `cache_ttl`  | `duration` | `[defaults].cache_ttl` | Per-source cache TTL override                                        |
-| `max_stale`  | `duration` | `[defaults].max_stale` | Per-source max stale age override                                    |
-
 ## Template variables
 
 Expanded in HTTP `url`, `query`, `headers`, and command `argv` for the local calendar day:
@@ -233,6 +226,8 @@ muted = { fg = "#5c5f77", italic = true }
 
 ### Remote HTTP billing provider
 
+A custom `ANTHROPIC_BASE_URL` automatically hides the `block` segment, so no extra setting is needed.
+
 ```toml
 [[cost_sources]]
 id = "billing"
@@ -247,11 +242,6 @@ url = "https://billing.example.com/v1/usage"
 query = { start = "{start_utc}", end = "{end_utc}" }
 auth = { type = "bearer_file", path = "/run/secrets/billing-token" }
 extract = ["usage", "total_usd"]
-
-[cost_sources.behavior]
-show_block = false
-cache_ttl = "60s"
-max_stale = "15m"
 ```
 
 ### External command provider

@@ -6,6 +6,7 @@
 
 use std/assert
 use std-rfc/str
+use ./config.nu [should-show-block]
 use ./providers/ccusage.nu [CCUSAGE_SPEC DAILY_SPEC]
 
 const SCRIPT_DIR = path self "."
@@ -161,6 +162,7 @@ def invoke-statusline [
   --lock-held
   --async
   --extra-config: record = {}
+  --extra-env: record = {}
   --extra-input: record = {}
   --extra-path: string = ""
 ]: nothing -> record {
@@ -221,26 +223,31 @@ def invoke-statusline [
           no_proxy: true
           extract: ["usage" "total_usd"]
         }
-        behavior: {
-          show_block: false
-        }
       }
     ]
   }
   let merged_cfg = ($base_cfg | merge $extra_config)
   ($merged_cfg | to toml | save --force --raw $config)
 
-  let is_remote = (
-    ($base_url | str trim --right --char "/") == $API_BASE_URL
-    or ($base_url | str starts-with $"($API_BASE_URL)/")
+  let claude_env = (
+    {
+      ANTHROPIC_API_KEY: ""
+      ANTHROPIC_AUTH_TOKEN: ""
+      ANTHROPIC_BASE_URL: $base_url
+      CLAUDE_CODE_USE_BEDROCK: ""
+      CLAUDE_CODE_USE_FOUNDRY: ""
+      CLAUDE_CODE_USE_VERTEX: ""
+      NO_COLOR: $no_color
+    }
+    | merge $extra_env
   )
   let has_block_segment = (
     "block" in ($merged_cfg.layout?.rows? | default [["block"]] | flatten)
   )
-  let expected_ccusage_lock = if $is_remote or (not $has_block_segment) {
-    $daily_lock
-  } else {
+  let expected_ccusage_lock = if $has_block_segment and (should-show-block $claude_env) {
     $ccusage_lock
+  } else {
+    $daily_lock
   }
   let sync_args = if $async { [] } else { ["--sync-refresh"] }
   let path_list = if ($extra_path | is-not-empty) {
@@ -257,21 +264,23 @@ def invoke-statusline [
     | merge $extra_input
   )
 
-  let run = with-env {
-    ANTHROPIC_BASE_URL: $base_url
-    CCUSAGE_MODE: $ccusage_mode
-    CURL_LOG: $curl_log
-    CURL_MODE: $curl_mode
-    FLOCK_LOG: $flock_log
-    NO_COLOR: $no_color
-    PATH: $path_list
-    STUB_FLOCK_HELD: (if $lock_held { "1" } else { "0" })
-    STUB_LOCK: $expected_ccusage_lock
-    STUB_LOG: $ccusage_log
-    STUB_MV_FAIL: (if $fail_mv { "1" } else { "0" })
-    STUB_REMOTE_LOCK: $remote_lock
-    TZ: $tz
-  } {
+  let run_env = (
+    $claude_env
+    | merge {
+      CCUSAGE_MODE: $ccusage_mode
+      CURL_LOG: $curl_log
+      CURL_MODE: $curl_mode
+      FLOCK_LOG: $flock_log
+      PATH: $path_list
+      STUB_FLOCK_HELD: (if $lock_held { "1" } else { "0" })
+      STUB_LOCK: $expected_ccusage_lock
+      STUB_LOG: $ccusage_log
+      STUB_MV_FAIL: (if $fail_mv { "1" } else { "0" })
+      STUB_REMOTE_LOCK: $remote_lock
+      TZ: $tz
+    }
+  )
+  let run = with-env $run_env {
     (
       $payload
       | to json
@@ -609,6 +618,110 @@ def "test layout without block or today skips ccusage and remote cost providers"
   }
 }
 
+def "test non-subscription env hides block and skips ccusage blocks" [] {
+  let today = (utc-today)
+  let cases = [
+    {
+      name: "ANTHROPIC_API_KEY"
+      env: {ANTHROPIC_API_KEY: "sk-ant-test"}
+    }
+    {
+      name: "ANTHROPIC_AUTH_TOKEN"
+      env: {ANTHROPIC_AUTH_TOKEN: "tok-test"}
+    }
+    {
+      name: "custom ANTHROPIC_BASE_URL"
+      env: {ANTHROPIC_BASE_URL: "https://proxy.example.com"}
+    }
+    {
+      name: "CLAUDE_CODE_USE_BEDROCK"
+      env: {CLAUDE_CODE_USE_BEDROCK: "1"}
+    }
+    {
+      name: "CLAUDE_CODE_USE_VERTEX"
+      env: {CLAUDE_CODE_USE_VERTEX: "true"}
+    }
+    {
+      name: "CLAUDE_CODE_USE_FOUNDRY"
+      env: {CLAUDE_CODE_USE_FOUNDRY: "yes"}
+    }
+  ]
+  for case in $cases {
+    let dir = (mktemp --directory)
+    let first = (invoke-statusline $dir --extra-env $case.env)
+    assert equal $first.run.exit_code 0 $"($case.name): ($first.run.stderr)"
+    assert equal $first.flock_calls [
+      (expected-flock-call $first.cache_dir $first.config $DAILY_SPEC.lock_name "ccusage-daily")
+    ] $case.name
+    assert equal $first.calls [(daily-call $today)] $case.name
+
+    let second = (invoke-statusline $dir --extra-env $case.env)
+    assert equal $second.run.exit_code 0 $"($case.name): ($second.run.stderr)"
+    assert equal $second.fields {
+      block: ""
+      daily: "Today: $40.75"
+    } $case.name
+  }
+}
+
+def "test non-subscription env with block-only layout skips ccusage completely" [] {
+  let dir = (mktemp --directory)
+  let extra_cfg = {
+    layout: {
+      rows: [
+        ["dir"]
+        ["context" "block" "time"]
+      ]
+    }
+  }
+  let result = (
+    invoke-statusline $dir
+      --extra-config $extra_cfg
+      --extra-env {ANTHROPIC_API_KEY: "sk-ant-test"}
+  )
+  assert equal $result.run.exit_code 0 $result.run.stderr
+  assert equal $result.flock_calls []
+  assert equal $result.calls []
+  assert equal $result.curl_calls []
+  assert equal $result.fields {
+    block: ""
+    daily: ""
+  }
+  assert equal ($result.lines.1 | split row " | " | length) 2
+}
+
+def "test official base url and falsy cloud flags keep block visible" [] {
+  let dir = (mktemp --directory)
+  let today = (utc-today)
+  let extra_env = {
+    CLAUDE_CODE_USE_BEDROCK: "0"
+    CLAUDE_CODE_USE_VERTEX: "false"
+    CLAUDE_CODE_USE_FOUNDRY: "off"
+  }
+
+  let first = (
+    invoke-statusline $dir
+      --base-url "HTTPS://API.ANTHROPIC.COM/"
+      --extra-env $extra_env
+  )
+  assert equal $first.run.exit_code 0 $first.run.stderr
+  assert equal $first.flock_calls [
+    (expected-flock-call $first.cache_dir $first.config $CCUSAGE_SPEC.lock_name "ccusage")
+  ]
+  assert equal $first.calls (refresh-calls $today)
+
+  let second = (
+    invoke-statusline $dir
+      --base-url "HTTPS://API.ANTHROPIC.COM/"
+      --extra-env $extra_env
+  )
+  assert equal $second.run.exit_code 0 $second.run.stderr
+  assert equal $second.fields {
+    block: "Block: $12.50 (3h5m left, $3.25/h)"
+    daily: "Today: $40.75"
+  }
+}
+
 # --------------------------------------------------------------------------------------------------
 # Remote and Command Cost Sources
 # --------------------------------------------------------------------------------------------------
@@ -679,14 +792,36 @@ def "test http fallback renders single Today and non-matching URL stays local" [
 
   let dir_unmatched = (mktemp --directory)
   let today = (utc-today)
-  let cache_dir = ($dir_unmatched | path join "cache")
+  let unmatched_url = $"($API_BASE_URL).evil.test/anthropic"
+  let unmatched_first = (invoke-statusline $dir_unmatched --base-url $unmatched_url)
+  assert equal $unmatched_first.run.exit_code 0 $unmatched_first.run.stderr
+  assert equal $unmatched_first.curl_calls []
+  assert equal $unmatched_first.flock_calls [
+    (
+      expected-flock-call
+        $unmatched_first.cache_dir
+        $unmatched_first.config
+        $DAILY_SPEC.lock_name
+        "ccusage-daily"
+    )
+  ]
+  assert equal $unmatched_first.calls [(daily-call $today)]
+
+  let unmatched_second = (invoke-statusline $dir_unmatched --base-url $unmatched_url)
+  assert equal $unmatched_second.run.exit_code 0 $unmatched_second.run.stderr
+  assert equal $unmatched_second.fields {
+    block: ""
+    daily: "Today: $40.75"
+  }
+
+  let dir_official = (mktemp --directory)
+  let cache_dir = ($dir_official | path join "cache")
   mkdir $cache_dir
   (cached-usage $today) | save ($cache_dir | path join $CCUSAGE_SPEC.cache_name)
-  let unmatched = (
-    invoke-statusline $dir_unmatched --base-url $"($API_BASE_URL).evil.test/anthropic"
-  )
-  assert equal $unmatched.curl_calls []
-  assert equal $unmatched.fields {
+  let official = (invoke-statusline $dir_official --base-url "https://api.anthropic.com/")
+  assert equal $official.run.exit_code 0 $official.run.stderr
+  assert equal $official.curl_calls []
+  assert equal $official.fields {
     block: "Block: $4.50 (2h5m left, $1.75/h)"
     daily: "Today: $8.25"
   }

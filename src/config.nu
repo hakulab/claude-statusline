@@ -21,6 +21,26 @@ const DEFAULT_THEME = {
   overrides: {}
 }
 
+const OFFICIAL_ANTHROPIC_BASE_URL = "https://api.anthropic.com"
+
+const NON_SUBSCRIPTION_ENV_KEYS = [
+  "ANTHROPIC_API_KEY"
+  "ANTHROPIC_AUTH_TOKEN"
+]
+
+const CLOUD_PROVIDER_ENV_KEYS = [
+  "CLAUDE_CODE_USE_BEDROCK"
+  "CLAUDE_CODE_USE_VERTEX"
+  "CLAUDE_CODE_USE_FOUNDRY"
+]
+
+const TRUTHY_ENV_VALUES = [
+  "1"
+  "true"
+  "yes"
+  "on"
+]
+
 # --------------------------------------------------------------------------------------------------
 # Defaults and Config Loading
 # --------------------------------------------------------------------------------------------------
@@ -92,17 +112,11 @@ def normalize-local [raw: record]: nothing -> record {
   }
 }
 
-def normalize-cost-source [raw: record, defaults: record]: nothing -> record {
-  let behavior = ($raw.behavior? | default {})
+def normalize-cost-source [raw: record]: nothing -> record {
   {
     id: ($raw.id? | default "")
     match: ($raw.match? | default {})
     source: ($raw.source? | default {})
-    behavior: {
-      show_block: ($behavior.show_block?)
-      cache_ttl: (parse-duration ($behavior.cache_ttl?) $defaults.cache_ttl)
-      max_stale: (parse-duration ($behavior.max_stale?) $defaults.max_stale)
-    }
   }
 }
 
@@ -126,15 +140,14 @@ export def load-config [config_path: string = ""]: nothing -> record {
     error make {msg: $"config file must contain a table or record: ($target)"}
   }
 
-  let defaults = (normalize-defaults ($raw.defaults? | default {}))
   let sources = (
     $raw.cost_sources?
     | default []
-    | each {|entry| normalize-cost-source $entry $defaults }
+    | each {|entry| normalize-cost-source $entry }
   )
 
   {
-    defaults: $defaults
+    defaults: (normalize-defaults ($raw.defaults? | default {}))
     layout: (normalize-layout ($raw.layout? | default {}))
     theme: (normalize-theme ($raw.theme?))
     local: (normalize-local ($raw.local? | default {}))
@@ -144,8 +157,34 @@ export def load-config [config_path: string = ""]: nothing -> record {
 }
 
 # --------------------------------------------------------------------------------------------------
-# Cost Source Matching and Block Visibility
+# Block Visibility and Cost Source Matching
 # --------------------------------------------------------------------------------------------------
+
+def env-string [env_vars: record, key: string]: nothing -> string {
+  $env_vars | get -o $key | default "" | into string | str trim
+}
+
+def env-truthy [env_vars: record, key: string]: nothing -> bool {
+  (env-string $env_vars $key | str lowercase) in $TRUTHY_ENV_VALUES
+}
+
+def has-custom-base-url [env_vars: record]: nothing -> bool {
+  let raw = (env-string $env_vars "ANTHROPIC_BASE_URL")
+  if ($raw | is-empty) {
+    return false
+  }
+  ($raw | str trim --right --char "/" | str lowercase) != $OFFICIAL_ANTHROPIC_BASE_URL
+}
+
+export def should-show-block [env_vars: record]: nothing -> bool {
+  let has_api_auth = (
+    $NON_SUBSCRIPTION_ENV_KEYS | any {|key| env-string $env_vars $key | is-not-empty }
+  )
+  let has_cloud_provider = (
+    $CLOUD_PROVIDER_ENV_KEYS | any {|key| env-truthy $env_vars $key }
+  )
+  not ($has_api_auth or $has_cloud_provider or (has-custom-base-url $env_vars))
+}
 
 # For HTTP(S) prefixes, require an exact match or a `/` boundary so `https://api.example.com`
 # does not match `https://api.example.com.evil.test`.
@@ -177,9 +216,7 @@ export def source-matches [entry: record, env_vars: record]: nothing -> bool {
   )
   let exists_ok = (
     $required
-    | all {|key|
-      $env_vars | get -o $key | default "" | into string | str trim | is-not-empty
-    }
+    | all {|key| env-string $env_vars $key | is-not-empty }
   )
 
   $prefix_ok and $exists_ok
@@ -188,10 +225,6 @@ export def source-matches [entry: record, env_vars: record]: nothing -> bool {
 export def active-cost-sources [config: record, env_vars: record]: nothing -> list<record> {
   $config.cost_sources
   | where {|entry| ($entry.id | is-not-empty) and (source-matches $entry $env_vars) }
-}
-
-export def should-show-block [matched_sources: list<record>]: nothing -> bool {
-  not ($matched_sources | any {|entry| $entry.behavior.show_block? == false })
 }
 
 # --------------------------------------------------------------------------------------------------

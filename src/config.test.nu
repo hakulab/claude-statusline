@@ -91,10 +91,6 @@ def "test load-config merges TOML defaults, layout, models, and cost sources" []
     type = "http"
     url = "https://billing.example.com/v1/usage"
     extract = ["usage", "total_usd"]
-
-    [cost_sources.behavior]
-    show_block = false
-    cache_ttl = "90s"
     '
     | str dedent
   )
@@ -126,10 +122,19 @@ def "test load-config merges TOML defaults, layout, models, and cost sources" []
   }
   assert equal $cfg.models {"claude-opus-5-5": "Opus 5.5"}
   assert equal ($cfg.cost_sources | length) 1
-  assert equal $cfg.cost_sources.0.behavior {
-    show_block: false
-    cache_ttl: 90sec
-    max_stale: 10min
+  assert equal $cfg.cost_sources.0 {
+    id: "billing"
+    match: {
+      env_prefix: {
+        ANTHROPIC_BASE_URL: "https://api.example.com"
+      }
+      env_exists: ["BILLING_ENABLED"]
+    }
+    source: {
+      type: "http"
+      url: "https://billing.example.com/v1/usage"
+      extract: ["usage" "total_usd"]
+    }
   }
 }
 
@@ -184,8 +189,174 @@ def "test load-config preserves unknown theme keys and marks non-record theme se
 }
 
 # --------------------------------------------------------------------------------------------------
-# Cost Source Matching and Block Visibility
+# Block Visibility and Cost Source Matching
 # --------------------------------------------------------------------------------------------------
+
+def "test should-show-block keeps block visible for subscription environments" [] {
+  let cases = [
+    {
+      name: "empty environment"
+      env: {}
+    }
+    {
+      name: "unrelated environment variable"
+      env: {HOME: "/tmp"}
+    }
+    {
+      name: "empty and whitespace-only Claude variables"
+      env: {
+        ANTHROPIC_API_KEY: "   "
+        ANTHROPIC_AUTH_TOKEN: ""
+        ANTHROPIC_BASE_URL: "  "
+        CLAUDE_CODE_USE_BEDROCK: ""
+        CLAUDE_CODE_USE_VERTEX: "   "
+        CLAUDE_CODE_USE_FOUNDRY: ""
+      }
+    }
+    {
+      name: "official Anthropic base URL"
+      env: {ANTHROPIC_BASE_URL: "https://api.anthropic.com"}
+    }
+    {
+      name: "official base URL with trailing slash"
+      env: {ANTHROPIC_BASE_URL: "https://api.anthropic.com/"}
+    }
+    {
+      name: "official base URL with multiple trailing slashes"
+      env: {ANTHROPIC_BASE_URL: "https://api.anthropic.com///"}
+    }
+    {
+      name: "official base URL uppercase with trailing slash"
+      env: {ANTHROPIC_BASE_URL: "HTTPS://API.ANTHROPIC.COM/"}
+    }
+    {
+      name: "official base URL with surrounding whitespace"
+      env: {ANTHROPIC_BASE_URL: "  https://api.anthropic.com/  "}
+    }
+    {
+      name: "falsy cloud flag 0"
+      env: {CLAUDE_CODE_USE_BEDROCK: "0"}
+    }
+    {
+      name: "falsy cloud flag false"
+      env: {CLAUDE_CODE_USE_VERTEX: "false"}
+    }
+    {
+      name: "falsy cloud flag FALSE"
+      env: {CLAUDE_CODE_USE_FOUNDRY: "FALSE"}
+    }
+    {
+      name: "falsy cloud flag no"
+      env: {CLAUDE_CODE_USE_BEDROCK: "no"}
+    }
+    {
+      name: "falsy cloud flag off"
+      env: {CLAUDE_CODE_USE_VERTEX: "off"}
+    }
+    {
+      name: "falsy cloud flag disabled"
+      env: {CLAUDE_CODE_USE_FOUNDRY: "disabled"}
+    }
+    {
+      name: "falsy cloud flag integer 0"
+      env: {CLAUDE_CODE_USE_BEDROCK: 0}
+    }
+    {
+      name: "falsy cloud flag bool false"
+      env: {CLAUDE_CODE_USE_VERTEX: false}
+    }
+  ]
+  for case in $cases {
+    assert equal (should-show-block $case.env) true $case.name
+  }
+}
+
+def "test should-show-block hides block for non-subscription environments" [] {
+  let cases = [
+    {
+      name: "ANTHROPIC_API_KEY set"
+      env: {ANTHROPIC_API_KEY: "sk-ant-test"}
+    }
+    {
+      name: "ANTHROPIC_API_KEY set to 0"
+      env: {ANTHROPIC_API_KEY: "0"}
+    }
+    {
+      name: "ANTHROPIC_AUTH_TOKEN set"
+      env: {ANTHROPIC_AUTH_TOKEN: "tok-test"}
+    }
+    {
+      name: "custom base URL"
+      env: {ANTHROPIC_BASE_URL: "https://proxy.example.com"}
+    }
+    {
+      name: "custom base URL with path"
+      env: {ANTHROPIC_BASE_URL: "https://proxy.example.com/anthropic"}
+    }
+    {
+      name: "non-HTTPS Anthropic base URL"
+      env: {ANTHROPIC_BASE_URL: "http://api.anthropic.com"}
+    }
+    {
+      name: "Anthropic base URL with custom path"
+      env: {ANTHROPIC_BASE_URL: "https://api.anthropic.com/proxy"}
+    }
+    {
+      name: "lookalike Anthropic base URL host"
+      env: {ANTHROPIC_BASE_URL: "https://api.anthropic.com.evil.test"}
+    }
+    {
+      name: "official base URL combined with API key"
+      env: {
+        ANTHROPIC_BASE_URL: "https://api.anthropic.com"
+        ANTHROPIC_API_KEY: "sk-ant-test"
+      }
+    }
+    {
+      name: "Bedrock flag 1"
+      env: {CLAUDE_CODE_USE_BEDROCK: "1"}
+    }
+    {
+      name: "Vertex flag true"
+      env: {CLAUDE_CODE_USE_VERTEX: "true"}
+    }
+    {
+      name: "Foundry flag TRUE"
+      env: {CLAUDE_CODE_USE_FOUNDRY: "TRUE"}
+    }
+    {
+      name: "Bedrock flag yes"
+      env: {CLAUDE_CODE_USE_BEDROCK: "yes"}
+    }
+    {
+      name: "Vertex flag YES"
+      env: {CLAUDE_CODE_USE_VERTEX: "YES"}
+    }
+    {
+      name: "Foundry flag on"
+      env: {CLAUDE_CODE_USE_FOUNDRY: "on"}
+    }
+    {
+      name: "Bedrock flag ON"
+      env: {CLAUDE_CODE_USE_BEDROCK: "ON"}
+    }
+    {
+      name: "Vertex flag padded 1"
+      env: {CLAUDE_CODE_USE_VERTEX: " 1 "}
+    }
+    {
+      name: "Foundry flag integer 1"
+      env: {CLAUDE_CODE_USE_FOUNDRY: 1}
+    }
+    {
+      name: "Bedrock flag bool true"
+      env: {CLAUDE_CODE_USE_BEDROCK: true}
+    }
+  ]
+  for case in $cases {
+    assert equal (should-show-block $case.env) false $case.name
+  }
+}
 
 def "test source-matches enforces URL boundary and env-exists" [] {
   let entry = {
@@ -255,17 +426,6 @@ def "test active-cost-sources filters empty ids and unmatched rules" [] {
   }
   let matched = (active-cost-sources $cfg {ENABLE_A: "1"})
   assert equal ($matched | get id) ["matched"]
-}
-
-def "test should-show-block hides block when any matched source disables it" [] {
-  let hide = {behavior: {show_block: false}}
-  let inherit_opt = {behavior: {show_block: null}}
-  let show = {behavior: {show_block: true}}
-
-  assert equal (should-show-block []) true
-  assert equal (should-show-block [$inherit_opt $show]) true
-  assert equal (should-show-block [$hide]) false
-  assert equal (should-show-block [$show $hide]) false
 }
 
 # --------------------------------------------------------------------------------------------------
