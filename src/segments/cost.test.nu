@@ -5,6 +5,7 @@
 # ==================================================================================================
 
 use std/assert
+use ../theme.nu [resolve-theme]
 use ./cost.nu [format-block format-remaining format-session format-today]
 
 def "test format-session formats cost, zero, and omits missing or invalid values" [] {
@@ -87,4 +88,28 @@ def "test format-today renders combined, single-side, and empty values" [] {
     let actual = if $case.expected == "" { $rendered } else { $rendered | ansi strip }
     assert equal $actual $case.expected $case.name
   }
+}
+
+def "test cost segments apply custom and empty themes" [] {
+  let latte = (resolve-theme {preset: "catppuccin-latte"}).theme
+  let plain = (resolve-theme {} {NO_COLOR: "1"}).theme
+  let block = {
+    has_block: true
+    block_cost: 4.5
+    remaining_minutes: 60
+    burn_rate: 1.5
+  }
+  let local = {
+    has_daily: true
+    daily_cost: 8.25
+  }
+
+  let styled_block = (format-block $block --theme $latte)
+  assert ($styled_block | str contains $latte.muted)
+  assert ($styled_block | str contains $latte.info)
+  assert ($styled_block | str contains $latte.warning)
+
+  assert equal (format-session {cost: {total_cost_usd: 1.25}} --theme $plain) "Sess: $1.25"
+  assert equal (format-block $block --theme $plain) "Block: $4.50 (1h0m left, $1.50/h)"
+  assert equal (format-today $local [] --theme $plain) "Today: $8.25"
 }

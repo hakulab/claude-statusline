@@ -3,8 +3,9 @@
 # ==================================================================================================
 
 use ../format.nu [labeled paint usd]
+use ../theme.nu [default-theme]
 
-export def format-session [input: record]: nothing -> string {
+export def format-session [input: record, --theme: record]: nothing -> string {
   let raw = $input.cost?.total_cost_usd?
   if $raw == null {
     return ""
@@ -13,7 +14,8 @@ export def format-session [input: record]: nothing -> string {
   if $amount == null {
     ""
   } else {
-    labeled "Sess" (usd $amount) "cyan"
+    let t = ($theme | default { default-theme })
+    labeled "Sess" (usd $amount) $t.info $t.muted
   }
 }
 
@@ -29,11 +31,12 @@ export def format-remaining [minutes: int]: nothing -> string {
   }
 }
 
-export def format-block [data: record]: nothing -> string {
+export def format-block [data: record, --theme: record]: nothing -> string {
   if not ($data.has_block? | default false) {
     return ""
   }
 
+  let t = ($theme | default { default-theme })
   let remaining = ($data.remaining_minutes? | default 0)
   let burn_rate = ($data.burn_rate? | default 0.0)
   let details = (
@@ -47,13 +50,17 @@ export def format-block [data: record]: nothing -> string {
   let suffix = if ($details | is-empty) {
     ""
   } else {
-    $" (paint $"\(($details)\)" "yellow")"
+    $" (paint $"\(($details)\)" $t.warning)"
   }
 
-  $"(labeled "Block" (usd ($data.block_cost? | default 0.0)) "cyan")($suffix)"
+  $"(labeled "Block" (usd ($data.block_cost? | default 0.0)) $t.info $t.muted)($suffix)"
 }
 
-export def format-today [local: record, remotes: list<record>]: nothing -> string {
+export def format-today [
+  local: record
+  remotes: list<record>
+  --theme: record
+]: nothing -> string {
   let local_value = if ($local.has_daily? | default false) {
     usd ($local.daily_cost? | default 0.0)
   }
@@ -69,6 +76,7 @@ export def format-today [local: record, remotes: list<record>]: nothing -> strin
   if ($values | is-empty) {
     ""
   } else {
-    labeled "Today" ($values | str join " / ") "cyan"
+    let t = ($theme | default { default-theme })
+    labeled "Today" ($values | str join " / ") $t.info $t.muted
   }
 }

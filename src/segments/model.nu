@@ -3,6 +3,7 @@
 # ==================================================================================================
 
 use ../format.nu [paint]
+use ../theme.nu [default-theme]
 
 export def model-name [input: record, models: record]: nothing -> string {
   let id = ($input.model?.id? | default "")
@@ -31,11 +32,12 @@ export def model-name [input: record, models: record]: nothing -> string {
   | str join " "
 }
 
-export def format-model [input: record, models: record]: nothing -> string {
+export def format-model [input: record, models: record, --theme: record]: nothing -> string {
   let name = (model-name $input $models)
   if ($name | is-empty) {
     ""
   } else {
-    paint $name "cyan"
+    let t = ($theme | default { default-theme })
+    paint $name $t.info
   }
 }

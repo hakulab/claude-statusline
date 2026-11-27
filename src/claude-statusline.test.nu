@@ -155,6 +155,7 @@ def invoke-statusline [
   --base-url: string = ""
   --no-token
   --no-ca
+  --no-color: string = ""
   --tz: string = "UTC"
   --fail-mv
   --lock-held
@@ -262,6 +263,7 @@ def invoke-statusline [
     CURL_LOG: $curl_log
     CURL_MODE: $curl_mode
     FLOCK_LOG: $flock_log
+    NO_COLOR: $no_color
     PATH: $path_list
     STUB_FLOCK_HELD: (if $lock_held { "1" } else { "0" })
     STUB_LOCK: $expected_ccusage_lock
@@ -735,4 +737,112 @@ def "test detached background refresh returns stale cache without blocking" [] {
     block: "Block: $4.50 (2h5m left, $1.75/h)"
     daily: "Today: $8.25"
   }
+}
+
+# --------------------------------------------------------------------------------------------------
+# Themes and NO_COLOR
+# --------------------------------------------------------------------------------------------------
+
+def "test theme preset and overrides style segments and separators" [] {
+  let dir = (mktemp --directory)
+  let extra_cfg = {
+    layout: {
+      rows: [
+        ["dir"]
+        ["session" "context"]
+      ]
+    }
+    theme: {
+      preset: "catppuccin-latte"
+      overrides: {
+        accent: {
+          fg: "#fe640b"
+          bold: false
+        }
+      }
+    }
+  }
+
+  let result = (invoke-statusline $dir --extra-config $extra_cfg)
+
+  assert equal $result.run.exit_code 0 $result.run.stderr
+  assert equal $result.run.stderr ""
+  assert ($result.run.stdout | str contains (ansi --escape "38;2;254;100;11m"))
+  assert ($result.run.stdout | str contains (ansi --escape "38;2;23;146;153m"))
+  assert ($result.run.stdout | str contains (ansi --escape "38;2;108;111;133m"))
+  assert ($result.run.stdout | str contains (ansi --escape "38;2;172;176;190m"))
+}
+
+def "test no-color emits plain text with no ANSI escape sequences" [] {
+  let dir = (mktemp --directory)
+  let extra_cfg = {
+    layout: {
+      rows: [
+        ["dir"]
+        ["session" "context"]
+      ]
+    }
+    theme: {
+      preset: "catppuccin-mocha"
+    }
+  }
+
+  let result = (invoke-statusline $dir --extra-config $extra_cfg --no-color "1")
+
+  assert equal $result.run.exit_code 0 $result.run.stderr
+  assert equal $result.run.stderr ""
+  assert equal $result.run.stdout ($result.run.stdout | ansi strip)
+  assert equal $result.lines [
+    "work"
+    "Sess: $1.23 | Ctx: 0%"
+  ]
+}
+
+def "test invalid theme warns on stderr, still renders, and refresh skips theme warnings" [] {
+  let dir = (mktemp --directory)
+  let extra_cfg = {
+    layout: {
+      rows: [
+        ["dir"]
+        ["session" "context"]
+      ]
+    }
+    theme: {
+      preset: "nonexistent"
+      overrides: {
+        info: "#fff"
+      }
+    }
+  }
+
+  let result = (invoke-statusline $dir --extra-config $extra_cfg)
+
+  assert equal $result.run.exit_code 0
+  assert ($result.run.stderr | str contains "unknown theme preset 'nonexistent'")
+  assert ($result.run.stderr | str contains "invalid color '#fff'")
+  assert equal $result.lines [
+    "work"
+    "Sess: $1.23 | Ctx: 0%"
+  ]
+
+  let refresh_run = with-env {
+    CCUSAGE_MODE: "success"
+    PATH: ($env.PATH | prepend $env.NU_TEST_STUBS)
+    STUB_LOCK: $result.daily_lock
+    STUB_LOG: ($dir | path join "refresh-calls.jsonl")
+    TZ: "UTC"
+  } {
+    (
+      ^$nu.current-exe
+        --no-config-file
+        $SCRIPT
+          --config $result.config
+          --cache-dir $result.cache_dir
+          --refresh "ccusage-daily"
+      | complete
+    )
+  }
+
+  assert equal $refresh_run.exit_code 0 $refresh_run.stderr
+  assert equal $refresh_run.stderr ""
 }

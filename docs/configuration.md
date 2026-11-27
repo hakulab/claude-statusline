@@ -26,7 +26,7 @@ Global timing defaults for cache freshness and cost-provider requests.
 | `max_stale` | duration | `"15m"` | Maximum age of stale cached data served while refreshing         |
 | `timeout`   | duration | `"5s"`  | Per-request timeout for HTTP and external command cost providers |
 
-Duration values accept shorthand strings (`30s`, `15m`, `2h`), Nushell duration strings (`60sec`, `15min`), or bare numeric seconds (`45`).
+Duration values accept shorthand strings (`30s`, `15m`, `2h`), [Nushell durations](https://www.nushell.sh/book/types_of_data.html#durations) (`60sec`, `15min`), or bare numeric seconds (`45`).
 
 ### `[layout]`
 
@@ -56,9 +56,62 @@ Row 0 defaults to `" "` unless overridden by `separators[0]`. Rows beyond the le
 
 Unknown segment names are ignored.
 
+### `[theme]`
+
+Selects a color preset and optional per-slot style overrides.
+
+| Key         | Type     | Default              | Description                                                                               |
+| ----------- | -------- | -------------------- | ----------------------------------------------------------------------------------------- |
+| `preset`    | `string` | `"catppuccin-mocha"` | Built-in palette: `"catppuccin-mocha"`, `"catppuccin-latte"`, `"ansi"`, or `"monochrome"` |
+| `overrides` | `table`  | `{}`                 | Per-slot style patches applied on top of `preset`                                         |
+
+Built-in presets:
+
+- `"catppuccin-mocha"` (default): 24-bit truecolor dark palette based on [Catppuccin](https://catppuccin.com/palette/) Mocha.
+- `"catppuccin-latte"`: 24-bit truecolor light palette based on [Catppuccin](https://catppuccin.com/palette/) Latte.
+- `"ansi"`: terminal-native [16-color ANSI](https://en.wikipedia.org/wiki/ANSI_escape_code#Colors) palette with terminal-default dim for labels and separators.
+- `"monochrome"`: modifier-only styling (`bold`, `dim`, `italic`, `underlined`) with no color hues, readable on any light or dark terminal background.
+
+Invalid preset names or malformed overrides print a warning to stderr and fall back cleanly so the status line continues to render.
+
+Setting `NO_COLOR` to any non-empty value disables all ANSI escape sequences regardless of `[theme]`, following [no-color.org](https://no-color.org/). An unset or empty `NO_COLOR` leaves colors enabled.
+
+#### Semantic slots
+
+| Slot        | Used by                                                          |
+| ----------- | ---------------------------------------------------------------- |
+| `accent`    | `dir`                                                            |
+| `info`      | `model`, `session`, `block` cost, `today`                        |
+| `success`   | `git` branch, `context` (< 50%)                                  |
+| `warning`   | `git` status marks, `context` (50–79%), `block` remaining / rate |
+| `error`     | `context` (≥ 80%)                                                |
+| `mode`      | `mode` vim indicator                                             |
+| `muted`     | `Ctx:`, `Sess:`, `Block:`, `Today:` labels and `time`            |
+| `separator` | Non-whitespace row separator                                     |
+
+#### `[theme.overrides]`
+
+Each key in `[theme.overrides]` names one of the eight semantic slots and accepts either:
+
+- A **bare color string** (`warning = "#fe640b"`), which patches `fg` and preserves the preset's `bg` and modifiers.
+- An **inline table** (`accent = { fg = "#1e66f5", bold = false }`), which patches only the listed fields (`fg`, `bg`, `bold`, `dim`, `italic`, `underlined`, `reversed`). Omitted fields inherit from the preset. Setting a modifier to `false` clears it, and setting `fg` or `bg` to `"reset"` (or `"default"`) clears that channel to the terminal default.
+
+When overriding `muted` or `separator` with a hex color on top of the `ansi` or `monochrome` preset, set `dim = false` if you do not want the terminal to dim the RGB value.
+
+Color values are case-insensitive and trim surrounding whitespace:
+
+| Form              | Example      | Description                                                                                                                                |
+| ----------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 6-digit hex       | `"#89b4fa"`  | 24-bit truecolor RGB (3-digit `#fff` is rejected)                                                                                          |
+| ANSI 16 named     | `"blue"`     | Standard (`black`–`white`) and bright (`bright_black`–`bright_white`) [ANSI colors](https://en.wikipedia.org/wiki/ANSI_escape_code#Colors) |
+| Indexed 256-color | `"ansi:174"` | [8-bit 256-color](https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit) palette index `0`–`255`                                            |
+| Terminal default  | `"reset"`    | Clears `fg` or `bg` to the terminal default (`"default"` is also accepted)                                                                 |
+
+Accepted ANSI 16 names are `black`, `red`, `green`, `yellow`, `blue`, `magenta` (`purple`), `cyan`, `white` (`gray` / `grey`), and their `bright_*` variants (aliases: `dark_gray` / `dark_grey` for `bright_black`, `light_*` for `bright_red`–`bright_white`, and `bright_purple` / `light_purple` for `bright_magenta`).
+
 ### `[local]`
 
-Configures the built-in local usage provider.
+Configures the built-in local usage provider ([`ccusage`](https://github.com/ryoppippi/ccusage)).
 
 | Key        | Type     | Default     | Description             |
 | ---------- | -------- | ----------- | ----------------------- |
@@ -164,6 +217,18 @@ Omitting `git`, `block`, and `today` skips spawning `git` and `ccusage`:
 [layout]
 rows = [["dir", "model", "context", "session", "time"]]
 separators = [" · "]
+```
+
+### Theme preset with overrides
+
+```toml
+[theme]
+preset = "catppuccin-latte"
+
+[theme.overrides]
+warning = "#fe640b"
+accent = { fg = "#7287fd", bold = false }
+muted = { fg = "#5c5f77", italic = true }
 ```
 
 ### Remote HTTP billing provider

@@ -8,7 +8,7 @@
 
 use ./cache.nu [read-cached write-cache]
 use ./config.nu [active-cost-sources load-config row-separator should-show-block]
-use ./format.nu [dim]
+use ./format.nu [paint]
 use ./providers/ccusage.nu [CCUSAGE_SPEC DAILY_SPEC current-ccusage]
 use ./providers/command.nu [fetch-command]
 use ./providers/common.nu [source-cache-spec]
@@ -18,6 +18,7 @@ use ./segments/context.nu [format-context]
 use ./segments/cost.nu [format-block format-session format-today]
 use ./segments/git.nu [format-git-info]
 use ./segments/model.nu [format-model]
+use ./theme.nu [resolve-theme]
 
 const SCRIPT_PATH = path self
 
@@ -104,26 +105,27 @@ def render-segment [
   name: string
   input: record
   config: record
+  theme: record
   git_info: string
   local_usage: record
   remote_usages: list<record>
   show_block: bool
 ]: nothing -> string {
   match $name {
-    "dir" => { format-dir $input }
+    "dir" => { format-dir $input --theme $theme }
     "git" => $git_info
-    "mode" => { format-mode $input }
-    "model" => { format-model $input $config.models }
-    "context" => { format-context $input }
-    "session" => { format-session $input }
-    "block" => { if $show_block { format-block $local_usage } else { "" } }
-    "today" => { format-today $local_usage $remote_usages }
-    "time" => { format-time }
+    "mode" => { format-mode $input --theme $theme }
+    "model" => { format-model $input $config.models --theme $theme }
+    "context" => { format-context $input --theme $theme }
+    "session" => { format-session $input --theme $theme }
+    "block" => { if $show_block { format-block $local_usage --theme $theme } else { "" } }
+    "today" => { format-today $local_usage $remote_usages --theme $theme }
+    "time" => { format-time --theme $theme }
     _ => ""
   }
 }
 
-def join-row [parts: list<string>, separator: string]: nothing -> string {
+def join-row [parts: list<string>, separator: string, sep_style: string]: nothing -> string {
   let non_empty = ($parts | compact --empty)
   if ($non_empty | is-empty) {
     return ""
@@ -131,7 +133,7 @@ def join-row [parts: list<string>, separator: string]: nothing -> string {
   let sep = if ($separator | str trim | is-empty) {
     $separator
   } else {
-    dim $separator
+    paint $separator $sep_style
   }
   $non_empty | str join $sep
 }
@@ -158,6 +160,12 @@ def main [
     return
   }
 
+  let resolved_theme = (resolve-theme $config_data.theme $env)
+  for warning in $resolved_theme.warnings {
+    print --stderr $"claude-statusline: warning: ($warning)"
+  }
+  let theme = $resolved_theme.theme
+
   let input = (read-input)
   let active_segments = ($config_data.layout.rows | flatten | uniq)
   let needs_git = ("git" in $active_segments)
@@ -166,7 +174,7 @@ def main [
   let needs_cost = ($needs_block or $needs_today)
 
   let cwd = (input-cwd $input)
-  let git_info = if $needs_git { format-git-info $cwd } else { "" }
+  let git_info = if $needs_git { format-git-info $cwd --theme $theme } else { "" }
 
   let matched = if $needs_cost { active-cost-sources $config_data $env } else { [] }
   let show_block = ($needs_block and (should-show-block $matched))
@@ -219,6 +227,7 @@ def main [
               $segment
               $input
               $config_data
+              $theme
               $git_info
               $local_usage
               $remote_usages
@@ -226,7 +235,7 @@ def main [
           )
         }
       )
-      join-row $parts (row-separator $config_data.layout $row.index)
+      join-row $parts (row-separator $config_data.layout $row.index) $theme.separator
     }
     | compact --empty
   )

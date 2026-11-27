@@ -16,6 +16,11 @@ const DEFAULT_ROWS = [
 const DEFAULT_ROW0_SEPARATOR = " "
 const DEFAULT_SEPARATOR = " | "
 
+const DEFAULT_THEME = {
+  preset: "catppuccin-mocha"
+  overrides: {}
+}
+
 # --------------------------------------------------------------------------------------------------
 # Defaults and Config Loading
 # --------------------------------------------------------------------------------------------------
@@ -38,6 +43,7 @@ export def default-config []: nothing -> record {
       separator: $DEFAULT_SEPARATOR
       separators: []
     }
+    theme: $DEFAULT_THEME
     local: {
       provider: "ccusage"
     }
@@ -60,6 +66,24 @@ def normalize-layout [raw: record]: nothing -> record {
     separator: ($raw.separator? | default $DEFAULT_SEPARATOR)
     separators: ($raw.separators? | default [])
   }
+}
+
+def normalize-theme [raw: any]: nothing -> record {
+  if $raw == null {
+    return $DEFAULT_THEME
+  }
+  if not ($raw | describe | str starts-with "record") {
+    return {
+      preset: $DEFAULT_THEME.preset
+      overrides: {}
+      invalid_section: ($raw | describe)
+    }
+  }
+  (
+    $raw
+    | upsert preset ($raw.preset? | default $DEFAULT_THEME.preset)
+    | upsert overrides ($raw.overrides? | default {})
+  )
 }
 
 def normalize-local [raw: record]: nothing -> record {
@@ -112,6 +136,7 @@ export def load-config [config_path: string = ""]: nothing -> record {
   {
     defaults: $defaults
     layout: (normalize-layout ($raw.layout? | default {}))
+    theme: (normalize-theme ($raw.theme?))
     local: (normalize-local ($raw.local? | default {}))
     models: ($raw.models? | default {})
     cost_sources: $sources

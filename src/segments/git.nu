@@ -3,6 +3,7 @@
 # ==================================================================================================
 
 use ../format.nu [paint]
+use ../theme.nu [default-theme]
 
 const NO_BRANCH = {
   branch: ""
@@ -69,7 +70,7 @@ export def work-counts [
   }
 }
 
-export def format-git-info [cwd: string]: nothing -> string {
+export def format-git-info [cwd: string, --theme: record]: nothing -> string {
   if ($cwd | is-empty) {
     return ""
   }
@@ -79,6 +80,7 @@ export def format-git-info [cwd: string]: nothing -> string {
     return ""
   }
 
+  let t = ($theme | default { default-theme })
   let work = (work-counts ($output | skip 1))
   let marks = (
     [
@@ -95,8 +97,8 @@ export def format-git-info [cwd: string]: nothing -> string {
   )
 
   if ($marks | is-empty) {
-    paint $branch.branch "green"
+    paint $branch.branch $t.success
   } else {
-    $"(paint $branch.branch "green")(paint $marks "yellow")"
+    $"(paint $branch.branch $t.success)(paint $marks $t.warning)"
   }
 }

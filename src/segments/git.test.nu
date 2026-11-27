@@ -5,6 +5,7 @@
 # ==================================================================================================
 
 use std/assert
+use ../theme.nu [default-theme resolve-theme]
 use ./git.nu [format-git-info parse-branch work-counts]
 
 def "test parse-branch handles tracking, unborn, detached, and invalid headers" [] {
@@ -64,7 +65,7 @@ def "test format-git-info renders clean repo, dirty marks, and omits non-git dir
 
   let clean = (format-git-info $repo)
   assert equal ($clean | ansi strip) "main"
-  assert not ($clean | str contains (ansi yellow))
+  assert not ($clean | str contains (default-theme).warning)
 
   "changed\n" | save --force ($repo | path join "tracked.txt")
   "staged\n" | save ($repo | path join "staged.txt")
@@ -72,6 +73,13 @@ def "test format-git-info renders clean repo, dirty marks, and omits non-git dir
   "new\n" | save ($repo | path join "untracked.txt")
 
   assert equal (format-git-info $repo | ansi strip) "main +1 !1 ?1"
+
+  let latte = (resolve-theme {preset: "catppuccin-latte"}).theme
+  let plain = (resolve-theme {} {NO_COLOR: "1"}).theme
+  let styled = (format-git-info $repo --theme $latte)
+  assert ($styled | str contains $latte.success)
+  assert ($styled | str contains $latte.warning)
+  assert equal (format-git-info $repo --theme $plain) "main +1 !1 ?1"
 
   let non_git = (mktemp --directory)
   assert equal (format-git-info $non_git) ""
