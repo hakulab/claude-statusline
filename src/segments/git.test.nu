@@ -5,7 +5,7 @@
 # ==================================================================================================
 
 use std/assert
-use ../theme.nu [resolve-theme]
+use ../theme.nu [default-theme resolve-theme]
 use ./git.nu [format-git-info parse-branch work-counts]
 
 def "test parse-branch handles tracking, unborn, detached, and invalid headers" [] {
@@ -65,7 +65,7 @@ def "test format-git-info renders clean repo, dirty marks, and omits non-git dir
 
   let clean = (format-git-info $repo)
   assert equal ($clean | ansi strip) "main"
-  assert not ($clean | str contains (ansi yellow))
+  assert not ($clean | str contains (default-theme).warning)
 
   "changed\n" | save --force ($repo | path join "tracked.txt")
   "staged\n" | save ($repo | path join "staged.txt")

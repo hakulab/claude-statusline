@@ -11,29 +11,20 @@ use ./theme.nu [default-theme resolve-theme]
 # Built-in Presets
 # --------------------------------------------------------------------------------------------------
 
-def "test default-theme matches resolved ansi preset and Nushell ANSI codes" [] {
+def "test default-theme matches resolved catppuccin-mocha preset" [] {
   let resolved = (
     resolve-theme {
-      preset: "ansi"
+      preset: "catppuccin-mocha"
       overrides: {}
     }
   )
 
   assert equal $resolved.warnings []
   assert equal (default-theme) $resolved.theme
-  assert equal $resolved.theme {
-    accent: (ansi blue_bold)
-    info: (ansi cyan)
-    success: (ansi green)
-    warning: (ansi yellow)
-    error: (ansi red)
-    mode: (ansi magenta)
-    muted: (ansi --escape "2m")
-    separator: (ansi --escape "2m")
-  }
+  assert equal (resolve-theme {}).theme (default-theme)
 }
 
-def "test catppuccin presets compile expected truecolor SGR sequences" [] {
+def "test built-in presets compile expected SGR sequences" [] {
   let cases = [
     {
       preset: "catppuccin-mocha"
@@ -59,6 +50,32 @@ def "test catppuccin presets compile expected truecolor SGR sequences" [] {
         mode: (ansi --escape "38;2;136;57;239m")
         muted: (ansi --escape "38;2;108;111;133m")
         separator: (ansi --escape "38;2;172;176;190m")
+      }
+    }
+    {
+      preset: "ansi"
+      expected: {
+        accent: (ansi blue_bold)
+        info: (ansi cyan)
+        success: (ansi green)
+        warning: (ansi yellow)
+        error: (ansi red)
+        mode: (ansi magenta)
+        muted: (ansi --escape "2m")
+        separator: (ansi --escape "2m")
+      }
+    }
+    {
+      preset: "monochrome"
+      expected: {
+        accent: (ansi --escape "1m")
+        info: ""
+        success: ""
+        warning: (ansi --escape "3m")
+        error: (ansi --escape "1;4m")
+        mode: (ansi --escape "1m")
+        muted: (ansi --escape "2m")
+        separator: (ansi --escape "2m")
       }
     }
   ]
@@ -233,7 +250,7 @@ def "test invalid theme config warns and falls back while keeping valid override
       }
       warning_match: "unknown theme preset"
       slot: "accent"
-      expected: (ansi blue_bold)
+      expected: (ansi --escape "1;38;2;137;180;250m")
     }
     {
       name: "non-record overrides"
@@ -419,7 +436,7 @@ def "test no-color disables all slots for any non-empty value and preserves warn
 
   let with_empty = (
     resolve-theme {
-      preset: "ansi"
+      preset: "catppuccin-mocha"
       overrides: {}
     } {NO_COLOR: ""}
   )

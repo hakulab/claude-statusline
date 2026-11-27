@@ -17,7 +17,7 @@ const DEFAULT_ROW0_SEPARATOR = " "
 const DEFAULT_SEPARATOR = " | "
 
 const DEFAULT_THEME = {
-  preset: "ansi"
+  preset: "catppuccin-mocha"
   overrides: {}
 }
 
@@ -74,14 +74,14 @@ def normalize-theme [raw: any]: nothing -> record {
   }
   if not ($raw | describe | str starts-with "record") {
     return {
-      preset: "ansi"
+      preset: $DEFAULT_THEME.preset
       overrides: {}
       invalid_section: ($raw | describe)
     }
   }
   (
     $raw
-    | upsert preset ($raw.preset? | default "ansi")
+    | upsert preset ($raw.preset? | default $DEFAULT_THEME.preset)
     | upsert overrides ($raw.overrides? | default {})
   )
 }

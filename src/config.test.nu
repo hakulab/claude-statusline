@@ -44,7 +44,7 @@ def "test load-config returns defaults when default path is absent" [] {
     separators: []
   }
   assert equal $cfg.theme {
-    preset: "ansi"
+    preset: "catppuccin-mocha"
     overrides: {}
   }
 }
@@ -169,7 +169,7 @@ def "test load-config preserves unknown theme keys and marks non-record theme se
   let unknown_cfg = (load-config $unknown_key)
   assert equal $unknown_cfg.theme {
     base: "catppuccin-latte"
-    preset: "ansi"
+    preset: "catppuccin-mocha"
     overrides: {}
   }
 
@@ -177,7 +177,7 @@ def "test load-config preserves unknown theme keys and marks non-record theme se
   'theme = "catppuccin-latte"' | save --force --raw $bad_theme
   let bad_cfg = (load-config $bad_theme)
   assert equal $bad_cfg.theme {
-    preset: "ansi"
+    preset: "catppuccin-mocha"
     overrides: {}
     invalid_section: "string"
   }

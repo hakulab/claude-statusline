@@ -80,20 +80,9 @@ const EMPTY_THEME = {
   separator: ""
 }
 
+const DEFAULT_PRESET = "catppuccin-mocha"
+
 const PRESETS = {
-  ansi: {
-    accent: {
-      fg: "blue"
-      bold: true
-    }
-    info: {fg: "cyan"}
-    success: {fg: "green"}
-    warning: {fg: "yellow"}
-    error: {fg: "red"}
-    mode: {fg: "magenta"}
-    muted: {dim: true}
-    separator: {dim: true}
-  }
   catppuccin-mocha: {
     accent: {
       fg: "#89b4fa"
@@ -119,6 +108,32 @@ const PRESETS = {
     mode: {fg: "#8839ef"}
     muted: {fg: "#6c6f85"}
     separator: {fg: "#acb0be"}
+  }
+  ansi: {
+    accent: {
+      fg: "blue"
+      bold: true
+    }
+    info: {fg: "cyan"}
+    success: {fg: "green"}
+    warning: {fg: "yellow"}
+    error: {fg: "red"}
+    mode: {fg: "magenta"}
+    muted: {dim: true}
+    separator: {dim: true}
+  }
+  monochrome: {
+    accent: {bold: true}
+    info: {}
+    success: {}
+    warning: {italic: true}
+    error: {
+      bold: true
+      underlined: true
+    }
+    mode: {bold: true}
+    muted: {dim: true}
+    separator: {dim: true}
   }
 }
 
@@ -312,9 +327,9 @@ def patch-slot [slot: string, base: record, patch: any]: nothing -> record {
 # Theme Resolution
 # --------------------------------------------------------------------------------------------------
 
-# Return the compiled default ("ansi") theme record.
+# Return the compiled default ("catppuccin-mocha") theme record.
 export def default-theme []: nothing -> record {
-  compile-palette $PRESETS.ansi
+  compile-palette ($PRESETS | get $DEFAULT_PRESET)
 }
 
 # Resolve a normalized [theme] config and environment into compiled SGR prefixes and warnings.
@@ -334,13 +349,13 @@ export def resolve-theme [
     $warnings = ($warnings | append $"unknown theme key '($key)' \(valid: preset, overrides\)")
   }
 
-  let raw_preset = ($theme_cfg.preset? | default "ansi")
+  let raw_preset = ($theme_cfg.preset? | default $DEFAULT_PRESET)
   let preset_name = if ($raw_preset | describe) == "string" and ($raw_preset in $PRESETS) {
     $raw_preset
   } else {
     let valid = ($PRESETS | columns | str join ", ")
     $warnings = ($warnings | append $"unknown theme preset '($raw_preset)' \(valid: ($valid)\)")
-    "ansi"
+    $DEFAULT_PRESET
   }
 
   let base_palette = ($PRESETS | get $preset_name)
