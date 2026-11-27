@@ -8,8 +8,6 @@ use std/assert
 use ./context.nu [format-context]
 
 def "test format-context handles empty and populated token usage with color thresholds" [] {
-  assert equal (format-context {} | ansi strip) "Ctx: 0%"
-
   let low = {
     context_window: {
       context_window_size: 200000
@@ -47,4 +45,6 @@ def "test format-context handles empty and populated token usage with color thre
   let high_rendered = (format-context $high)
   assert equal ($high_rendered | ansi strip) "Ctx: 85% (170k/200k)"
   assert ($high_rendered | str contains (ansi red))
+
+  assert equal (format-context {} | ansi strip) "Ctx: 0%"
 }

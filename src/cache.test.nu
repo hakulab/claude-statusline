@@ -29,35 +29,6 @@ def valid-entry []: nothing -> record {
 }
 
 # --------------------------------------------------------------------------------------------------
-# Validation and Reading
-# --------------------------------------------------------------------------------------------------
-
-def "test cache-valid accepts today records and rejects invalid shapes or dates" [] {
-  assert (cache-valid (valid-entry) $TEST_SPEC.fields)
-  assert not (cache-valid {date: (today-key)} $TEST_SPEC.fields)
-  assert not (cache-valid {date: "20000101", value: 42} $TEST_SPEC.fields)
-  assert not (cache-valid "not-a-record" $TEST_SPEC.fields)
-}
-
-def "test read-cache returns fresh data and empty record on missing, expired, or corrupt files" [] {
-  let dir = (mktemp --directory)
-  let cache = ($dir | path join $TEST_SPEC.cache_name)
-
-  assert equal (read-cache $cache $TEST_SPEC.fields 60sec) {}
-
-  let payload = (valid-entry)
-  $payload | to json | save --force --raw $cache
-  assert equal (read-cache $cache $TEST_SPEC.fields 60sec) $payload
-
-  touch -d "5 minutes ago" $cache
-  assert equal (read-cache $cache $TEST_SPEC.fields 60sec) {}
-  assert equal (read-cache $cache $TEST_SPEC.fields 15min) $payload
-
-  "{truncated" | save --force --raw $cache
-  assert equal (read-cache $cache $TEST_SPEC.fields 60sec) {}
-}
-
-# --------------------------------------------------------------------------------------------------
 # Atomic Write and Publication
 # --------------------------------------------------------------------------------------------------
 
@@ -81,7 +52,9 @@ def "test write-cache reports save failure without temporary files" [] {
   let err = try {
     write-cache $cache (valid-entry)
     ""
-  } catch {|e| $e.msg }
+  } catch {|e|
+    $e.msg
+  }
 
   assert equal $err "failed to write usage cache"
   assert equal (ls $dir | get name) [$blocked_parent]
@@ -103,12 +76,68 @@ def "test write-cache preserves original file and cleans tmp when mv fails" [] {
     try {
       write-cache $cache (valid-entry)
       ""
-    } catch {|e| $e.msg }
+    } catch {|e|
+      $e.msg
+    }
   }
 
   assert equal $err "failed to publish usage cache"
   assert equal (open $cache) $original
   assert equal (ls $dir | where ($it.name | str ends-with ".tmp")) []
+}
+
+# --------------------------------------------------------------------------------------------------
+# Validation and Reading
+# --------------------------------------------------------------------------------------------------
+
+def "test cache-valid accepts today records and rejects invalid shapes or dates" [] {
+  let cases = [
+    {
+      name: "valid today entry"
+      cached: (valid-entry)
+      expected: true
+    }
+    {
+      name: "missing required field"
+      cached: {date: (today-key)}
+      expected: false
+    }
+    {
+      name: "stale date"
+      cached: {
+        date: "20000101"
+        value: 42
+      }
+      expected: false
+    }
+    {
+      name: "non-record payload"
+      cached: "not-a-record"
+      expected: false
+    }
+  ]
+  for case in $cases {
+    assert equal (cache-valid $case.cached $TEST_SPEC.fields) $case.expected $case.name
+  }
+}
+
+def "test read-cache returns fresh data and empty record on missing, expired, or corrupt files" [] {
+  let dir = (mktemp --directory)
+  let cache = ($dir | path join $TEST_SPEC.cache_name)
+
+  let payload = (valid-entry)
+  $payload | to json | save --force --raw $cache
+  assert equal (read-cache $cache $TEST_SPEC.fields 60sec) $payload
+
+  touch -d "5 minutes ago" $cache
+  assert equal (read-cache $cache $TEST_SPEC.fields 60sec) {}
+  assert equal (read-cache $cache $TEST_SPEC.fields 15min) $payload
+
+  "{truncated" | save --force --raw $cache
+  assert equal (read-cache $cache $TEST_SPEC.fields 60sec) {}
+
+  rm $cache
+  assert equal (read-cache $cache $TEST_SPEC.fields 60sec) {}
 }
 
 # --------------------------------------------------------------------------------------------------

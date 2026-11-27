@@ -5,6 +5,7 @@
 # ==================================================================================================
 
 use std/assert
+use std-rfc/str
 use ./config.nu [
   active-cost-sources
   default-config
@@ -47,7 +48,8 @@ def "test load-config returns defaults when default path is absent" [] {
 def "test load-config merges TOML defaults, layout, models, and cost sources" [] {
   let dir = (mktemp --directory)
   let path = ($dir | path join "config.toml")
-  let toml = '
+  let toml = (
+    '
     [defaults]
     cache_ttl = "30s"
     max_stale = "10m"
@@ -82,7 +84,9 @@ def "test load-config merges TOML defaults, layout, models, and cost sources" []
     [cost_sources.behavior]
     show_block = false
     cache_ttl = "90s"
-  '
+    '
+    | str dedent
+  )
   $toml | save --force --raw $path
 
   let cfg = (load-config $path)
@@ -114,45 +118,20 @@ def "test load-config errors on missing explicit file or non-record payload" [] 
   let missing_err = try {
     load-config $missing
     ""
-  } catch {|err| $err.msg }
+  } catch {|e|
+    $e.msg
+  }
   assert ($missing_err | str contains "config file not found")
 
   let list_file = ($dir | path join "list.json")
-  "[1, 2, 3]" | save --force --raw $list_file
+  [1 2 3] | to json | save --force --raw $list_file
   let shape_err = try {
     load-config $list_file
     ""
-  } catch {|err| $err.msg }
+  } catch {|e|
+    $e.msg
+  }
   assert ($shape_err | str contains "must contain a table or record")
-}
-
-# --------------------------------------------------------------------------------------------------
-# Layout Separators
-# --------------------------------------------------------------------------------------------------
-
-def "test row-separator applies defaults, custom separator, and per-row overrides" [] {
-  let default_layout = (default-config).layout
-  assert equal (row-separator $default_layout 0) " "
-  assert equal (row-separator $default_layout 1) " | "
-  assert equal (row-separator $default_layout 2) " | "
-
-  let custom_sep = {
-    rows: [["dir" "git"] ["model" "context"] ["today" "time"]]
-    separator: " · "
-    separators: []
-  }
-  assert equal (row-separator $custom_sep 0) " "
-  assert equal (row-separator $custom_sep 1) " · "
-  assert equal (row-separator $custom_sep 2) " · "
-
-  let per_row = {
-    rows: [["dir" "model"] ["context" "today"] ["time"]]
-    separator: " | "
-    separators: [" / " " · "]
-  }
-  assert equal (row-separator $per_row 0) " / "
-  assert equal (row-separator $per_row 1) " · "
-  assert equal (row-separator $per_row 2) " | "
 }
 
 # --------------------------------------------------------------------------------------------------
@@ -169,22 +148,43 @@ def "test source-matches enforces URL boundary and env-exists" [] {
       env_exists: ["BILLING_TOKEN"]
     }
   }
-  assert (source-matches $entry {
-    ANTHROPIC_BASE_URL: "https://api.example.com"
-    BILLING_TOKEN: "present"
-  })
-  assert (source-matches $entry {
-    ANTHROPIC_BASE_URL: "https://api.example.com/anthropic"
-    BILLING_TOKEN: "present"
-  })
-  assert not (source-matches $entry {
-    ANTHROPIC_BASE_URL: "https://api.example.com.evil.test/anthropic"
-    BILLING_TOKEN: "present"
-  })
-  assert not (source-matches $entry {
-    ANTHROPIC_BASE_URL: "https://api.example.com/anthropic"
-    BILLING_TOKEN: "   "
-  })
+  let cases = [
+    {
+      name: "exact URL match"
+      env: {
+        ANTHROPIC_BASE_URL: "https://api.example.com"
+        BILLING_TOKEN: "present"
+      }
+      expected: true
+    }
+    {
+      name: "path suffix under URL prefix"
+      env: {
+        ANTHROPIC_BASE_URL: "https://api.example.com/anthropic"
+        BILLING_TOKEN: "present"
+      }
+      expected: true
+    }
+    {
+      name: "lookalike host suffix rejected"
+      env: {
+        ANTHROPIC_BASE_URL: "https://api.example.com.evil.test/anthropic"
+        BILLING_TOKEN: "present"
+      }
+      expected: false
+    }
+    {
+      name: "blank required env var rejected"
+      env: {
+        ANTHROPIC_BASE_URL: "https://api.example.com/anthropic"
+        BILLING_TOKEN: "   "
+      }
+      expected: false
+    }
+  ]
+  for case in $cases {
+    assert equal (source-matches $entry $case.env) $case.expected $case.name
+  }
 }
 
 def "test active-cost-sources filters empty ids and unmatched rules" [] {
@@ -217,4 +217,33 @@ def "test should-show-block hides block when any matched source disables it" [] 
   assert equal (should-show-block [$inherit_opt $show]) true
   assert equal (should-show-block [$hide]) false
   assert equal (should-show-block [$show $hide]) false
+}
+
+# --------------------------------------------------------------------------------------------------
+# Layout Separators
+# --------------------------------------------------------------------------------------------------
+
+def "test row-separator applies defaults, custom separator, and per-row overrides" [] {
+  let default_layout = (default-config).layout
+  assert equal (row-separator $default_layout 0) " "
+  assert equal (row-separator $default_layout 1) " | "
+  assert equal (row-separator $default_layout 2) " | "
+
+  let custom_sep = {
+    rows: [["dir" "git"] ["model" "context"] ["today" "time"]]
+    separator: " · "
+    separators: []
+  }
+  assert equal (row-separator $custom_sep 0) " "
+  assert equal (row-separator $custom_sep 1) " · "
+  assert equal (row-separator $custom_sep 2) " · "
+
+  let per_row = {
+    rows: [["dir" "model"] ["context" "today"] ["time"]]
+    separator: " | "
+    separators: [" / " " · "]
+  }
+  assert equal (row-separator $per_row 0) " / "
+  assert equal (row-separator $per_row 1) " · "
+  assert equal (row-separator $per_row 2) " | "
 }

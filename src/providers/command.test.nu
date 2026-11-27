@@ -18,7 +18,7 @@ def "test fetch-command parses plain float and JSON extract with templates" [] {
 
   let extracted = (
     fetch-command {
-      argv: ["bash" "-c" 'printf "{\"day\":\"%s\",\"cost\":{\"usd\":55.5}}\n" "$1"' "_" "{date}"]
+      argv: ["printf" '{"day":"%s","cost":{"usd":55.5}}\n' "{date}"]
       extract: ["cost" "usd"]
     } 5sec "cmd-json"
   )
@@ -27,20 +27,29 @@ def "test fetch-command parses plain float and JSON extract with templates" [] {
 }
 
 def "test fetch-command reports empty argv, nonzero exit, and non-numeric stdout" [] {
-  let empty_err = try { fetch-command {argv: []} 5sec "cmd"; "" } catch {|e| $e.msg }
+  let empty_err = try {
+    fetch-command {argv: []} 5sec "cmd"
+    ""
+  } catch {|e|
+    $e.msg
+  }
   assert equal $empty_err "cmd argv must not be empty"
 
   let exit_err = try {
     fetch-command {argv: ["bash" "-c" "exit 3"]} 5sec "cmd"
     ""
-  } catch {|e| $e.msg }
+  } catch {|e|
+    $e.msg
+  }
   assert equal $exit_err "cmd command exited 3"
 
   for bad in ["not-a-number" "NaN" "inf" "-inf"] {
     let num_err = try {
       fetch-command {argv: ["bash" "-c" 'printf "%s\n" "$1"' "_" $bad]} 5sec "cmd"
       ""
-    } catch {|e| $e.msg }
+    } catch {|e|
+      $e.msg
+    }
     assert equal $num_err "cmd stdout is not numeric"
   }
 }

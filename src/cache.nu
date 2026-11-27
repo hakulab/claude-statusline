@@ -2,6 +2,36 @@
 # Shared Stale-While-Revalidate Cache
 # ==================================================================================================
 
+# --------------------------------------------------------------------------------------------------
+# Atomic Write and Publication
+# --------------------------------------------------------------------------------------------------
+
+def temp-cache-path [cache: path]: nothing -> path {
+  $"($cache).($nu.pid).tmp"
+}
+
+export def write-cache [cache: path, data: record]: nothing -> nothing {
+  let tmp = (temp-cache-path $cache)
+  try {
+    $data
+    | to json
+    | save --force --raw $tmp
+  } catch {
+    ^rm -f $tmp | complete | ignore
+    error make {msg: "failed to write usage cache"}
+  }
+
+  let moved = (^mv -f $tmp $cache | complete)
+  if $moved.exit_code != 0 {
+    ^rm -f $tmp | complete | ignore
+    error make {msg: "failed to publish usage cache"}
+  }
+}
+
+# --------------------------------------------------------------------------------------------------
+# Validation and Reading
+# --------------------------------------------------------------------------------------------------
+
 def modified-time [path: path]: nothing -> datetime {
   ls $path | get 0.modified
 }
@@ -33,30 +63,12 @@ export def read-cache [cache: path, fields: list<string>, max_age: duration]: no
   }
 }
 
-def temp-cache-path [cache: path]: nothing -> path {
-  $"($cache).($nu.pid).tmp"
-}
-
-export def write-cache [cache: path, data: record]: nothing -> nothing {
-  let tmp = (temp-cache-path $cache)
-  try {
-    $data
-    | to json
-    | save --force --raw $tmp
-  } catch {
-    ^rm -f $tmp | complete | ignore
-    error make {msg: "failed to write usage cache"}
-  }
-
-  let moved = (^mv -f $tmp $cache | complete)
-  if $moved.exit_code != 0 {
-    ^rm -f $tmp | complete | ignore
-    error make {msg: "failed to publish usage cache"}
-  }
-}
+# --------------------------------------------------------------------------------------------------
+# Stale-While-Revalidate Refresh
+# --------------------------------------------------------------------------------------------------
 
 # Contenders must lock the same inode, so lock files stay allocated and are never deleted.
-export def spawn-refresh [
+def spawn-refresh [
   lock: path
   script_path: path
   config_path: string

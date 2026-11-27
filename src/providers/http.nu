@@ -97,14 +97,13 @@ export def fetch-http [
   let vars = (template-vars $window)
   let url = (build-query-url $raw_url ($source_cfg.query? | default {}) $vars)
 
-  let method = ($source_cfg.method? | default "GET" | str uppercase)
-  let method_args = if $method != "GET" { ["--request" $method] } else { [] }
-
   let timeout_secs = (
     parse-duration ($source_cfg.timeout?) $default_timeout
     | duration-seconds $in
     | into string
   )
+  let method = ($source_cfg.method? | default "GET" | str uppercase)
+  let method_args = if $method != "GET" { ["--request" $method] } else { [] }
   let noproxy_args = if ($source_cfg.no_proxy? | default false) {
     ["--noproxy" "*"]
   } else {

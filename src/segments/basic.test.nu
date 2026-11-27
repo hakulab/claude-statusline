@@ -8,13 +8,38 @@ use std/assert
 use ./basic.nu [format-dir format-mode format-time]
 
 def "test format-dir renders basename, home tilde, root, cwd fallback, and omits empty cwd" [] {
-  assert equal (format-dir {workspace: {current_dir: "/tmp/my-project"}} "/home/user" | ansi strip) (
-    "my-project"
-  )
-  assert equal (format-dir {workspace: {current_dir: "/home/user"}} "/home/user" | ansi strip) "~"
-  assert equal (format-dir {workspace: {current_dir: "/"}} "/home/user" | ansi strip) "/"
-  assert equal (format-dir {cwd: "/tmp/fallback"} "/home/user" | ansi strip) "fallback"
-  assert equal (format-dir {} "/home/user") ""
+  let cases = [
+    {
+      name: "workspace basename"
+      input: {workspace: {current_dir: "/tmp/my-project"}}
+      expected: "my-project"
+    }
+    {
+      name: "home tilde"
+      input: {workspace: {current_dir: "/home/user"}}
+      expected: "~"
+    }
+    {
+      name: "root directory"
+      input: {workspace: {current_dir: "/"}}
+      expected: "/"
+    }
+    {
+      name: "cwd fallback"
+      input: {cwd: "/tmp/fallback"}
+      expected: "fallback"
+    }
+    {
+      name: "empty cwd omitted"
+      input: {}
+      expected: ""
+    }
+  ]
+  for case in $cases {
+    let rendered = (format-dir $case.input "/home/user")
+    let actual = if $case.expected == "" { $rendered } else { $rendered | ansi strip }
+    assert equal $actual $case.expected $case.name
+  }
 }
 
 def "test format-mode renders vim mode and omits missing or blank values" [] {

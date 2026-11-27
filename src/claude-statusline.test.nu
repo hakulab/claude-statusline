@@ -5,6 +5,7 @@
 # ==================================================================================================
 
 use std/assert
+use std-rfc/str
 use ./providers/ccusage.nu [CCUSAGE_SPEC DAILY_SPEC]
 
 const SCRIPT_DIR = path self "."
@@ -23,6 +24,10 @@ const BILLING_SPEC = {
   ]
 }
 
+# --------------------------------------------------------------------------------------------------
+# Fixtures and Helpers
+# --------------------------------------------------------------------------------------------------
+
 def utc-today []: nothing -> string {
   date now | date to-timezone "UTC" | format date "%Y%m%d"
 }
@@ -30,12 +35,12 @@ def utc-today []: nothing -> string {
 def cached-usage [today: string]: nothing -> record {
   {
     date: $today
-    has_block: true
     has_daily: true
+    daily_cost: 8.25
+    has_block: true
     block_cost: 4.5
     remaining_minutes: 125
     burn_rate: 1.75
-    daily_cost: 8.25
   }
 }
 
@@ -51,27 +56,11 @@ def refreshed-usage [today: string]: nothing -> record {
   }
 }
 
-def cached-daily [today: string]: nothing -> record {
-  {
-    date: $today
-    has_daily: true
-    daily_cost: 8.25
-  }
-}
-
 def refreshed-daily [today: string]: nothing -> record {
   {
     date: $today
     has_daily: true
     daily_cost: 40.75
-  }
-}
-
-def cached-remote [today: string]: nothing -> record {
-  {
-    date: $today
-    has_cost: true
-    daily_cost: 50.0
   }
 }
 
@@ -287,9 +276,9 @@ def invoke-statusline [
       | ^$nu.current-exe
         --no-config-file
         $SCRIPT
-        --config $config
-        --cache-dir $cache_dir
-        ...$sync_args
+          --config $config
+          --cache-dir $cache_dir
+          ...$sync_args
       | complete
     )
   }
@@ -327,6 +316,41 @@ def assert-stale-preserved [result: record, original: string] {
   assert equal (open --raw $result.ccusage_cache) $original
   assert equal $result.temporary_files []
   assert ($result.ccusage_lock | path exists)
+}
+
+# --------------------------------------------------------------------------------------------------
+# Input Handling
+# --------------------------------------------------------------------------------------------------
+
+def "test empty or minimal stdin renders cleanly without error" [] {
+  let dir = (mktemp --directory)
+  let config = ($dir | path join "config.toml")
+  (
+    {
+      layout: {
+        rows: [
+          ["dir" "git"]
+          ["context" "time"]
+        ]
+      }
+    }
+    | to toml
+    | save --force --raw $config
+  )
+
+  for raw in ["" "{}" "not-json"] {
+    let run = (
+      $raw
+      | ^$nu.current-exe
+        --no-config-file
+        $SCRIPT
+          --config $config
+          --cache-dir ($dir | path join "cache")
+      | complete
+    )
+    assert equal $run.exit_code 0 $run.stderr
+    assert ($run.stdout | ansi strip | str contains "Ctx: 0%")
+  }
 }
 
 # --------------------------------------------------------------------------------------------------
@@ -509,7 +533,13 @@ def "test layout without git skips invoking git binary" [] {
   let git_log = ($dir | path join "git-called")
   mkdir $spy_bin
   let git_spy = ($spy_bin | path join "git")
-  $"#!($nu.current-exe) --no-config-file\n\"called\" | save --append ($git_log | to nuon)\n"
+  (
+    $"
+    #!($nu.current-exe) --no-config-file
+    'called' | save --append ($git_log | to nuon)
+    "
+    | str dedent
+  )
   | save --force --raw $git_spy
   ^chmod +x $git_spy
 
@@ -689,26 +719,6 @@ def "test command cost source renders Today end-to-end" [] {
 # --------------------------------------------------------------------------------------------------
 # Detached Async Refresh
 # --------------------------------------------------------------------------------------------------
-
-def "test empty or minimal stdin renders cleanly without error" [] {
-  let dir = (mktemp --directory)
-  let config = ($dir | path join "config.toml")
-  "[layout]\nrows = [[\"dir\", \"git\"], [\"context\", \"time\"]]\n" | save --force --raw $config
-
-  for raw in ["" "{}" "not-json"] {
-    let run = (
-      $raw
-      | ^$nu.current-exe
-        --no-config-file
-        $SCRIPT
-        --config $config
-        --cache-dir ($dir | path join "cache")
-      | complete
-    )
-    assert equal $run.exit_code 0 $run.stderr
-    assert ($run.stdout | ansi strip | str contains "Ctx: 0%")
-  }
-}
 
 def "test detached background refresh returns stale cache without blocking" [] {
   let dir = (mktemp --directory)
