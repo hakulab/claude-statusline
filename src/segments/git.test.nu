@@ -55,26 +55,12 @@ def "test work-counts tallies staged, modified, and untracked entries" [] {
 
 def "test format-git-info renders clean repo, dirty marks, and omits non-git dirs" [] {
   let repo = (mktemp --directory)
-  (
-    ^git
-      -C $repo
-      init
-        --initial-branch=main
-    | complete
-    | ignore
-  )
+  ^git -C $repo init --initial-branch=main | complete | ignore
   ^git -C $repo config user.name "Test" | complete | ignore
   ^git -C $repo config user.email "test@example.com" | complete | ignore
   "hello\n" | save ($repo | path join "tracked.txt")
   ^git -C $repo add "tracked.txt" | complete | ignore
-  (
-    ^git
-      -C $repo
-      commit
-        -m "init"
-    | complete
-    | ignore
-  )
+  ^git -C $repo commit -m "init" | complete | ignore
 
   let clean = (format-git-info $repo)
   assert equal ($clean | ansi strip) "main"
