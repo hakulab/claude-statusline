@@ -134,9 +134,9 @@ Defines additional remote or script-backed daily cost providers. Every matching 
 Each entry has four fields:
 
 - `id` (`string`, required): unique identifier for the source
-- `match` (table, optional): environment rules that activate this source
-- `source` (table, required): provider type (`"http"` or `"command"`) and its parameters
-- `behavior` (table, optional): per-source `show_block`, `cache_ttl`, and `max_stale` overrides
+- `match` (`table`, optional): environment rules that activate this source
+- `source` (`table`, required): provider type (`"http"` or `"command"`) and its parameters
+- `behavior` (`table`, optional): per-source `show_block`, `cache_ttl`, and `max_stale` overrides
 
 #### `[cost_sources.match]`
 
