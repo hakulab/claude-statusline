@@ -49,7 +49,7 @@
         pkgs:
         (devkit.lib.mkLib pkgs).mkNuApplication {
           pname = "claude-statusline";
-          version = "0.1.0";
+          version = "1.0.0-rc.1";
           src = ./src;
           runtimeInputs = runtimeInputs pkgs;
           meta = {
