@@ -6,7 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/hakulab/claude-statusline/compare/v1.0.0-rc.1...HEAD
+[Unreleased]: https://github.com/hakulab/claude-statusline/compare/v1.0.0-rc.2...HEAD
+
+## [1.0.0-rc.2] - 2026-11-27
+
+### Added
+
+- _(theme)_ Configurable `[theme]` presets (`catppuccin-mocha` default, `catppuccin-latte`, `ansi`, and `monochrome`) and per-slot `[theme.overrides]` supporting 6-digit hex, ANSI 16 named colors, 256-color indices, `reset` / `default`, and SGR modifiers (`bold`, `dim`, `italic`, `underlined`, `reversed`); the default palette switches from ANSI 16 to 24-bit `catppuccin-mocha` (`preset = "ansi"` restores terminal-native 16-color output) ([#5](https://github.com/hakulab/claude-statusline/pull/5))
+- _(theme)_ `NO_COLOR` environment variable support that disables all ANSI escape sequences when set to a non-empty value ([#5](https://github.com/hakulab/claude-statusline/pull/5))
+
+[1.0.0-rc.2]: https://github.com/hakulab/claude-statusline/compare/v1.0.0-rc.1...v1.0.0-rc.2
 
 ## [1.0.0-rc.1] - 2026-11-27
 

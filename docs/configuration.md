@@ -20,11 +20,11 @@ programs.claude-statusline = {
 
 Global timing defaults for cache freshness and cost-provider requests.
 
-| Key         | Type     | Default | Description                                                      |
-| ----------- | -------- | ------- | ---------------------------------------------------------------- |
-| `cache_ttl` | duration | `"60s"` | Freshness window before a background refresh is scheduled        |
-| `max_stale` | duration | `"15m"` | Maximum age of stale cached data served while refreshing         |
-| `timeout`   | duration | `"5s"`  | Per-request timeout for HTTP and external command cost providers |
+| Key         | Type       | Default | Description                                                      |
+| ----------- | ---------- | ------- | ---------------------------------------------------------------- |
+| `cache_ttl` | `duration` | `"60s"` | Freshness window before a background refresh is scheduled        |
+| `max_stale` | `duration` | `"15m"` | Maximum age of stale cached data served while refreshing         |
+| `timeout`   | `duration` | `"5s"`  | Per-request timeout for HTTP and external command cost providers |
 
 Duration values accept shorthand strings (`30s`, `15m`, `2h`), [Nushell durations](https://www.nushell.sh/book/types_of_data.html#durations) (`60sec`, `15min`), or bare numeric seconds (`45`).
 
@@ -134,9 +134,9 @@ Defines additional remote or script-backed daily cost providers. Every matching 
 Each entry has four fields:
 
 - `id` (`string`, required): unique identifier for the source
-- `match` (table, optional): environment rules that activate this source
-- `source` (table, required): provider type (`"http"` or `"command"`) and its parameters
-- `behavior` (table, optional): per-source `show_block`, `cache_ttl`, and `max_stale` overrides
+- `match` (`table`, optional): environment rules that activate this source
+- `source` (`table`, required): provider type (`"http"` or `"command"`) and its parameters
+- `behavior` (`table`, optional): per-source `show_block`, `cache_ttl`, and `max_stale` overrides
 
 #### `[cost_sources.match]`
 

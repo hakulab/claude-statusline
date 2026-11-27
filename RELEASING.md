@@ -11,8 +11,8 @@ Use the [release skill](https://github.com/hakulab/plugins/blob/main/plugins/hak
 
 Within a minor version, stable releases keep these compatible:
 
-- CLI flags (`--config`, `--cache-dir`, `--refresh`, `--sync-refresh`) and exit codes
-- TOML configuration schema (`[defaults]`, `[layout]`, `[local]`, `[models]`, `[[cost_sources]]`)
+- CLI flags (`--config`, `--cache-dir`, `--refresh`, `--sync-refresh`), `NO_COLOR`, and exit codes
+- TOML configuration schema (`[defaults]`, `[layout]`, `[theme]`, `[local]`, `[models]`, `[[cost_sources]]`)
 - The flake's `packages`, `overlays.default`, and `homeModules.default` outputs, and `programs.claude-statusline` options
 
 ## Preparation and verification
