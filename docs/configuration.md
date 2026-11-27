@@ -52,10 +52,10 @@ Segments are evaluated lazily:
 | --------- | ------- | ----------------------------------------- | ----------------------------------------- |
 | `dir`     | Row 0   | `workspace.current_dir` (`~` for `$HOME`) | `my-project`                              |
 | `git`     | Row 0   | `git status --porcelain --branch`         | `main »1 +2 !1 ?3`                        |
+| `mode`    | Omitted | `vim.mode`                                | `NORMAL`                                  |
 | `model`   | Row 1   | `model`, `[models]`, `effort`             | `Opus 5.5 (1M) high`                      |
 | `context` | Row 1   | `context_window`                          | `Ctx: 42% (420k/1000k)`                   |
 | `session` | Omitted | `cost.total_cost_usd`                     | `Sess: $1.23`                             |
-| `mode`    | Omitted | `vim.mode`                                | `NORMAL`                                  |
 | `block`   | Row 1   | `ccusage blocks --active`                 | `Block: $4.50 (2h5m left, $1.75/h)`       |
 | `today`   | Row 1   | `ccusage daily` + `cost_sources`          | `Today: $8.25` or `Today: $8.25 / $19.50` |
 | `time`    | Row 1   | Local system clock                        | `14:35`                                   |
@@ -180,8 +180,8 @@ separators = [" · "]
 ```toml
 [layout]
 rows = [
-  ["dir", "git", "mode"],
-  ["model", "context", "session", "block", "today", "time"],
+  ["dir", "git"],
+  ["mode", "model", "context", "session", "block", "today", "time"],
 ]
 separator = " | "
 ```
