@@ -101,6 +101,17 @@ def "test format-git-info renders clean repo, dirty marks, and omits non-git dir
 }
 
 # --------------------------------------------------------------------------------------------------
+# Mode Segment
+# --------------------------------------------------------------------------------------------------
+
+def "test format-mode renders vim mode and omits missing or blank values" [] {
+  assert equal (format-mode {vim: {mode: "NORMAL"}} | ansi strip) "NORMAL"
+  assert equal (format-mode {vim: {mode: " INSERT "}} | ansi strip) "INSERT"
+  assert equal (format-mode {vim: {mode: "   "}}) ""
+  assert equal (format-mode {}) ""
+}
+
+# --------------------------------------------------------------------------------------------------
 # Model Segment
 # --------------------------------------------------------------------------------------------------
 
@@ -189,7 +200,7 @@ def "test format-context handles empty and populated token usage with color thre
 }
 
 # --------------------------------------------------------------------------------------------------
-# Session and Mode Segments
+# Session, Block, and Today Segments
 # --------------------------------------------------------------------------------------------------
 
 def "test format-session formats cost, zero, and omits missing or invalid values" [] {
@@ -198,17 +209,6 @@ def "test format-session formats cost, zero, and omits missing or invalid values
   assert equal (format-session {}) ""
   assert equal (format-session {cost: {total_cost_usd: "bad"}}) ""
 }
-
-def "test format-mode renders vim mode and omits missing or blank values" [] {
-  assert equal (format-mode {vim: {mode: "NORMAL"}} | ansi strip) "NORMAL"
-  assert equal (format-mode {vim: {mode: " INSERT "}} | ansi strip) "INSERT"
-  assert equal (format-mode {vim: {mode: "   "}}) ""
-  assert equal (format-mode {}) ""
-}
-
-# --------------------------------------------------------------------------------------------------
-# Block, Today, and Time Segments
-# --------------------------------------------------------------------------------------------------
 
 def "test format-remaining and format-block format active and inactive blocks" [] {
   assert equal (format-remaining 0) ""
@@ -254,6 +254,10 @@ def "test format-today renders combined, single-side, and empty values" [] {
   assert equal (format-today {} [$remote_a] | ansi strip) "Today: $198.11"
   assert equal (format-today {} [] | ansi strip) ""
 }
+
+# --------------------------------------------------------------------------------------------------
+# Time Segment
+# --------------------------------------------------------------------------------------------------
 
 def "test format-time formats HH:MM" [] {
   let dt = ("2026-11-26T14:35:00Z" | into datetime)

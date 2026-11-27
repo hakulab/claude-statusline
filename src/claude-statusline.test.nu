@@ -460,7 +460,7 @@ def "test held lock respects max-stale bound and renders no usage when uncached"
 # Custom Layout and Optional Segments
 # --------------------------------------------------------------------------------------------------
 
-def "test custom layout renders session, mode, custom separator, and per-row separators" [] {
+def "test custom layout renders mode, session, custom separator, and per-row separators" [] {
   let dir = (mktemp --directory)
   let extra_cfg = {
     layout: {

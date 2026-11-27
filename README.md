@@ -13,7 +13,7 @@ Opus 5.5 (1M) high | Ctx: 42% (420k/1000k) | Block: $4.50 (2h5m left, $1.75/h) |
 - **Zero configuration**: personal Claude Code subscriptions work without a config file, using `ccusage` for active 5-hour block and daily usage.
 - **Non-blocking caching**: `ccusage` and external cost providers refresh in detached background processes behind `flock --nonblock` locks while stale cached values are served.
 - **Lazy execution**: `git`, `ccusage blocks`, and cost providers run only when the configured layout uses the segments that need them.
-- **Configurable layout**: arrange built-in segments (`dir`, `git`, `model`, `context`, `session`, `mode`, `block`, `today`, `time`) across any number of rows, add model aliases, or plug in HTTP or command cost providers.
+- **Configurable layout**: arrange built-in segments (`dir`, `git`, `mode`, `model`, `context`, `session`, `block`, `today`, `time`) across any number of rows, add model aliases, or plug in HTTP or command cost providers.
 
 ## Install
 

@@ -117,10 +117,10 @@ def render-segment [
   match $name {
     "dir" => { format-dir $input }
     "git" => $git_info
+    "mode" => { format-mode $input }
     "model" => { format-model $input $config.models }
     "context" => { format-context $input }
     "session" => { format-session $input }
-    "mode" => { format-mode $input }
     "block" => { if $show_block { format-block $local_usage } else { "" } }
     "today" => { format-today $local_usage $remote_usages }
     "time" => { format-time }
