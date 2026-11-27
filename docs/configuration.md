@@ -26,7 +26,7 @@ Global timing defaults for cache freshness and cost-provider requests.
 | `max_stale` | duration | `"15m"` | Maximum age of stale cached data served while refreshing         |
 | `timeout`   | duration | `"5s"`  | Per-request timeout for HTTP and external command cost providers |
 
-Duration values accept shorthand strings (`30s`, `15m`, `2h`), Nushell duration strings (`60sec`, `15min`), or bare numeric seconds (`45`).
+Duration values accept shorthand strings (`30s`, `15m`, `2h`), [Nushell durations](https://www.nushell.sh/book/types_of_data.html#durations) (`60sec`, `15min`), or bare numeric seconds (`45`).
 
 ### `[layout]`
 
@@ -107,11 +107,11 @@ Color values are case-insensitive and trim surrounding whitespace:
 | Indexed 256-color | `"ansi:174"` | [8-bit 256-color](https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit) palette index `0`–`255`                                            |
 | Terminal default  | `"reset"`    | Clears `fg` or `bg` to the terminal default (`"default"` is also accepted)                                                                 |
 
-Accepted ANSI 16 names (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, and `bright_*` variants) also accept common aliases (`purple`, `gray` / `grey`, `dark_gray` / `dark_grey`, and `light_*` forms such as `light_red`, `light_blue`, `light_purple`, `light_white`), matching [Nushell's `ansi` color names](https://www.nushell.sh/commands/docs/ansi.html).
+ANSI 16 names accept standard and `bright_*` names plus common aliases (`purple`, `gray` / `grey`, `dark_gray` / `dark_grey`, `light_*`), matching [Nushell's `ansi` color names](https://www.nushell.sh/commands/docs/ansi.html).
 
 ### `[local]`
 
-Configures the built-in local usage provider.
+Configures the built-in local usage provider ([`ccusage`](https://github.com/ryoppippi/ccusage)).
 
 | Key        | Type     | Default     | Description             |
 | ---------- | -------- | ----------- | ----------------------- |

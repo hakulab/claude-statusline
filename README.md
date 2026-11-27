@@ -3,7 +3,7 @@
 [![CI](https://github.com/hakulab/claude-statusline/actions/workflows/ci.yml/badge.svg)](https://github.com/hakulab/claude-statusline/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-`claude-statusline` renders a non-blocking status line for Claude Code with local `ccusage` tracking, configurable layouts, and optional external cost providers.
+`claude-statusline` renders a non-blocking status line for Claude Code with local [`ccusage`](https://github.com/ryoppippi/ccusage) tracking, configurable layouts, and optional external cost providers.
 
 ```text
 my-project main »1 +2 !1 ?3
@@ -14,7 +14,7 @@ Opus 5.5 (1M) high | Ctx: 42% (420k/1000k) | Block: $4.50 (2h5m left, $1.75/h) |
 - **Non-blocking caching**: `ccusage` and external cost providers refresh in detached background processes behind `flock --nonblock` locks while stale cached values are served.
 - **Lazy execution**: `git`, `ccusage blocks`, and cost providers run only when the configured layout uses the segments that need them.
 - **Configurable layout**: arrange [built-in segments](docs/configuration.md#built-in-segments) across any number of rows, add model aliases, or plug in HTTP or command cost providers.
-- **Customizable themes**: choose from built-in presets (`catppuccin-mocha`, `catppuccin-latte`, `ansi`, `monochrome`), override individual semantic color slots, and disable ANSI output via `NO_COLOR`.
+- **Customizable themes**: choose from [built-in presets](docs/configuration.md#theme) (`catppuccin-mocha`, `catppuccin-latte`, `ansi`, `monochrome`), override individual semantic color slots, and disable ANSI output via [`NO_COLOR`](https://no-color.org/).
 
 ## Install
 
@@ -40,7 +40,7 @@ programs.claude-statusline.enable = true;
 
 ### From source
 
-Outside Nix, clone the repository and run `src/claude-statusline.nu` directly with Nushell:
+Outside Nix, clone the repository and run `src/claude-statusline.nu` directly with [Nushell](https://www.nushell.sh/):
 
 ```bash
 git clone https://github.com/hakulab/claude-statusline ~/.local/share/claude-statusline
