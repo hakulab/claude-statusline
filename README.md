@@ -3,17 +3,17 @@
 [![CI](https://github.com/hakulab/claude-statusline/actions/workflows/ci.yml/badge.svg)](https://github.com/hakulab/claude-statusline/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Fast, non-blocking status line for Claude Code that works out of the box with local `ccusage` tracking, configurable layouts, and optional external cost providers.
+`claude-statusline` renders a non-blocking status line for Claude Code with local `ccusage` tracking, configurable layouts, and optional external cost providers.
 
 ```text
 my-project main »1 +2 !1 ?3
 Opus 5.5 (1M) high | Ctx: 42% (420k/1000k) | Block: $4.50 (2h5m left, $1.75/h) | Today: $8.25 | 14:35
 ```
 
-- **Zero config required**: works immediately for personal Claude Code subscriptions using `ccusage` for active 5-hour block and daily usage.
-- **Non-blocking caching**: refreshes `ccusage` and any external cost providers in detached background processes behind `flock --nonblock` locks with stale-while-revalidate fallback.
-- **Lazy execution**: only invokes `git`, `ccusage blocks`, or cost providers when the configured layout uses them.
-- **Customizable**: arrange built-in segments (`dir`, `git`, `model`, `context`, `session`, `mode`, `block`, `today`, `time`) across any number of rows, add model aliases, or plug in HTTP/command cost providers.
+- **Zero configuration**: personal Claude Code subscriptions work without a config file, using `ccusage` for active 5-hour block and daily usage.
+- **Non-blocking caching**: `ccusage` and external cost providers refresh in detached background processes behind `flock --nonblock` locks while stale cached values are served.
+- **Lazy execution**: `git`, `ccusage blocks`, and cost providers run only when the configured layout uses the segments that need them.
+- **Configurable layout**: arrange built-in segments (`dir`, `git`, `model`, `context`, `session`, `mode`, `block`, `today`, `time`) across any number of rows, add model aliases, or plug in HTTP or command cost providers.
 
 ## Install
 
@@ -48,7 +48,7 @@ nu --no-config-file ~/.local/share/claude-statusline/src/claude-statusline.nu --
 
 Runtime requirements: `nu` (Nushell), `bash`, `curl`, `flock`, `git`, and optionally `ccusage` for block and daily usage tracking.
 
-## Claude Code Setup
+## Claude Code setup
 
 Point `statusLine.command` in `~/.claude/settings.json` to `claude-statusline`:
 
@@ -63,7 +63,7 @@ Point `statusLine.command` in `~/.claude/settings.json` to `claude-statusline`:
 
 ## Configuration
 
-No configuration file is needed for personal Claude Code usage. To customize rows, separators, model aliases, Home Manager `programs.claude-statusline.settings`, or external HTTP/command cost providers, see [docs/configuration.md](docs/configuration.md).
+Personal Claude Code subscriptions work without a configuration file. See [docs/configuration.md](docs/configuration.md) to customize rows, separators, model aliases, Home Manager `programs.claude-statusline.settings`, or external HTTP and command cost providers.
 
 ## Development
 

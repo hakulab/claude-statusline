@@ -1,8 +1,8 @@
-# Configuration Reference
+# Configuration reference
 
-`claude-statusline` reads `${XDG_CONFIG_HOME:-~/.config}/claude-statusline/config.toml` by default, or any TOML/JSON file passed via `--config <path>`. Every section and key is optional; omitted keys fall back to the defaults below.
+`claude-statusline` reads `${XDG_CONFIG_HOME:-~/.config}/claude-statusline/config.toml` by default, or any TOML or JSON file passed via `--config <path>`. Every section and key is optional, and omitted keys fall back to the defaults below.
 
-When using the Home Manager module, pass any of these keys under `programs.claude-statusline.settings` to generate `config.toml` automatically:
+When using the Home Manager module, pass any of these keys under `programs.claude-statusline.settings` to generate `config.toml`:
 
 ```nix
 programs.claude-statusline = {
@@ -18,7 +18,7 @@ programs.claude-statusline = {
 
 ### `[defaults]`
 
-Global timing defaults shared by local and remote cost providers.
+Global timing defaults for cache freshness and cost-provider requests.
 
 | Key         | Type     | Default | Description                                                      |
 | ----------- | -------- | ------- | ---------------------------------------------------------------- |
@@ -26,29 +26,29 @@ Global timing defaults shared by local and remote cost providers.
 | `max_stale` | duration | `"15m"` | Maximum age of stale cached data served while refreshing         |
 | `timeout`   | duration | `"5s"`  | Per-request timeout for HTTP and external command cost providers |
 
-Duration strings accept shorthand units (`30s`, `15m`, `2h`), Nushell durations (`60sec`, `15min`), or bare numeric seconds (`45`).
+Duration values accept shorthand strings (`30s`, `15m`, `2h`), Nushell duration strings (`60sec`, `15min`), or bare numeric seconds (`45`).
 
 ### `[layout]`
 
 Controls which segments appear on each row and how segments are joined.
 
-| Key          | Type                 | Default                                                            | Description                                                   |
-| ------------ | -------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------- |
-| `rows`       | `list<list<string>>` | `[["dir", "git"], ["model", "context", "block", "today", "time"]]` | Segment names arranged by row; empty segments and rows vanish |
-| `separator`  | `string`             | `" \| "`                                                           | Separator used for rows after row 0 (dimmed when non-blank)   |
-| `separators` | `list<string>`       | `[]`                                                               | Optional per-row separator overrides indexed by row number    |
+| Key          | Type                 | Default                                                            | Description                                                     |
+| ------------ | -------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------- |
+| `rows`       | `list<list<string>>` | `[["dir", "git"], ["model", "context", "block", "today", "time"]]` | Segment names arranged by row, omitting empty segments and rows |
+| `separator`  | `string`             | `" \| "`                                                           | Separator used for rows after row 0 (dimmed when non-blank)     |
+| `separators` | `list<string>`       | `[]`                                                               | Optional per-row separator overrides indexed by row number      |
 
 Row 0 defaults to `" "` unless overridden by `separators[0]`. Rows beyond the length of `separators` fall back to `separator`.
 
-**Lazy execution**:
+Segments are evaluated lazily:
 
-- `git` is only invoked when `"git"` appears in at least one row.
-- `ccusage blocks` is only invoked when `"block"` appears in at least one row and block display is enabled.
-- Neither `ccusage` nor any `[[cost_sources]]` provider is queried when neither `"block"` nor `"today"` appears in `rows`.
+- `git` runs only when `"git"` appears in `rows`.
+- `ccusage blocks` runs only when `"block"` appears in `rows` and block display is enabled.
+- `ccusage` runs only when `"block"` or `"today"` appears in `rows`, and `[[cost_sources]]` providers run only when `"today"` appears in `rows`.
 
-#### Built-in Segments
+#### Built-in segments
 
-| Name      | Default | Data Source                               | Example Output                            |
+| Name      | Default | Data source                               | Example output                            |
 | --------- | ------- | ----------------------------------------- | ----------------------------------------- |
 | `dir`     | Row 0   | `workspace.current_dir` (`~` for `$HOME`) | `my-project`                              |
 | `git`     | Row 0   | `git status --porcelain --branch`         | `main »1 +2 !1 ?3`                        |
@@ -60,7 +60,7 @@ Row 0 defaults to `" "` unless overridden by `separators[0]`. Rows beyond the le
 | `today`   | Row 1   | `ccusage daily` + `cost_sources`          | `Today: $8.25` or `Today: $8.25 / $19.50` |
 | `time`    | Row 1   | Local system clock                        | `14:35`                                   |
 
-Unknown segment names are silently ignored.
+Unknown segment names are ignored.
 
 ### `[local]`
 
@@ -82,7 +82,7 @@ Maps raw model IDs (with any trailing `[1m]` suffix stripped) to short display n
 "claude-haiku-5-5" = "Haiku 5.5"
 ```
 
-When a model ID is not present in `[models]`, `claude-statusline` uses `model.display_name` (normalizing `(1M context)` to `(1M)`) or the last path segment of `model.id`. A `(1M)` suffix is appended automatically when `context_window.context_window_size >= 1000000` or the ID ends with `[1m]`, followed by `effort.level` when present.
+When a model ID is absent from `[models]`, `claude-statusline` uses `model.display_name` (normalizing `(1M context)` to `(1M)`) or the last path segment of `model.id`. A `(1M)` suffix is appended when `context_window.context_window_size` ≥ 1,000,000 or the ID ends with `[1m]`, followed by `effort.level` when present.
 
 ### `[[cost_sources]]`
 
@@ -90,68 +90,68 @@ Defines additional remote or script-backed daily cost providers. Every matching 
 
 Each entry has four fields:
 
-- `id` (`string`, required): unique identifier used to name the source's cache and lock files.
-- `match` (table, optional): environment rules that activate this source.
-- `source` (table, required): provider type (`"http"` or `"command"`) and its parameters.
-- `behavior` (table, optional): per-source `show_block`, `cache_ttl`, and `max_stale` overrides.
+- `id` (`string`, required): unique identifier used to name the source's cache and lock files
+- `match` (table, optional): environment rules that activate this source
+- `source` (table, required): provider type (`"http"` or `"command"`) and its parameters
+- `behavior` (table, optional): per-source `show_block`, `cache_ttl`, and `max_stale` overrides
 
 #### `[cost_sources.match]`
 
-| Key          | Type           | Description                                                |
-| ------------ | -------------- | ---------------------------------------------------------- |
-| `env_prefix` | `table<str>`   | Every listed env var must start with the configured prefix |
-| `env_exists` | `list<string>` | Every listed env var must be set and non-blank             |
+| Key          | Type            | Description                                          |
+| ------------ | --------------- | ---------------------------------------------------- |
+| `env_prefix` | `table<string>` | Required prefix for each listed environment variable |
+| `env_exists` | `list<string>`  | Environment variables that must be set and non-blank |
 
 For `http://` and `https://` prefixes, `env_prefix` enforces an exact match or a `/` boundary (so `https://api.example.com` matches `https://api.example.com/v1` but not `https://api.example.com.evil.test`).
 
-#### `[cost_sources.source]` — HTTP (`type = "http"`)
+#### `[cost_sources.source]` (HTTP)
 
 Queries an HTTP endpoint with `curl` and extracts a numeric USD total from the JSON response.
 
-| Key        | Type           | Default | Description                                                           |
-| ---------- | -------------- | ------- | --------------------------------------------------------------------- |
-| `type`     | `string`       | —       | `"http"`                                                              |
-| `url`      | `string`       | —       | Endpoint URL (supports template variables)                            |
-| `method`   | `string`       | `"GET"` | HTTP method                                                           |
-| `query`    | `table<str>`   | `{}`    | URL query parameters (values support template variables)              |
-| `headers`  | `table<str>`   | `{}`    | Extra HTTP headers (values support template variables)                |
-| `auth`     | `table`        | `{}`    | Credential configuration (see Auth Types below)                       |
-| `ca_file`  | `string`       | `""`    | Optional CA certificate bundle passed to `curl --cacert` when present |
-| `no_proxy` | `bool`         | `false` | Pass `--noproxy '*'` to bypass proxy environment variables            |
-| `extract`  | `list<string>` | `[]`    | JSON object key path to the numeric USD total (required)              |
-| `timeout`  | `duration`     | default | Override `[defaults].timeout` for this source                         |
+| Key        | Type            | Default              | Description                                                            |
+| ---------- | --------------- | -------------------- | ---------------------------------------------------------------------- |
+| `type`     | `string`        | required             | `"http"`                                                               |
+| `url`      | `string`        | required             | Endpoint URL (supports template variables)                             |
+| `method`   | `string`        | `"GET"`              | HTTP method                                                            |
+| `query`    | `table<string>` | `{}`                 | URL query parameters (values support template variables)               |
+| `headers`  | `table<string>` | `{}`                 | Extra HTTP headers (values support template variables)                 |
+| `auth`     | `table`         | `{}`                 | Credential configuration (see [Auth types](#auth-types))               |
+| `ca_file`  | `string`        | `""`                 | Optional CA certificate bundle passed to `curl --cacert` when present  |
+| `no_proxy` | `bool`          | `false`              | Whether to pass `--noproxy '*'` and bypass proxy environment variables |
+| `extract`  | `list<string>`  | required             | JSON object key path to the numeric USD total                          |
+| `timeout`  | `duration`      | `[defaults].timeout` | Per-source timeout override                                            |
 
-##### Auth Types
+##### Auth types
 
-Credentials are passed to `curl` via `--variable` and `--expand-header` so token values never appear in process arguments. If a configured token file or environment variable is missing or blank, the source is skipped cleanly.
+Credentials are passed to `curl` via `--variable` and `--expand-header` so token values never appear in process arguments. If a configured token file or environment variable is missing or blank, the source is skipped.
 
-| `auth.type`   | Extra Fields     | Behavior                                              |
-| ------------- | ---------------- | ----------------------------------------------------- |
-| `none`        | —                | No authentication header (default)                    |
-| `bearer_file` | `path`           | Sends `Authorization: Bearer <trimmed file contents>` |
-| `header_file` | `header`, `path` | Sends `<header>: <trimmed file contents>`             |
-| `bearer_env`  | `env`            | Sends `Authorization: Bearer <trimmed env var value>` |
+| `auth.type`   | Extra fields     | Header sent                                     |
+| ------------- | ---------------- | ----------------------------------------------- |
+| `none`        | (none)           | No authentication header (default)              |
+| `bearer_file` | `path`           | `Authorization: Bearer <trimmed file contents>` |
+| `header_file` | `header`, `path` | `<header>: <trimmed file contents>`             |
+| `bearer_env`  | `env`            | `Authorization: Bearer <trimmed env var value>` |
 
-#### `[cost_sources.source]` — Command (`type = "command"`)
+#### `[cost_sources.source]` (command)
 
-Runs an external command under `timeout` (falling back to `gtimeout` on macOS) and reads a USD cost from stdout.
+Runs an external command under `timeout` (or `gtimeout` on macOS when present) and reads a USD cost from stdout.
 
-| Key       | Type           | Default | Description                                                           |
-| --------- | -------------- | ------- | --------------------------------------------------------------------- |
-| `type`    | `string`       | —       | `"command"`                                                           |
-| `argv`    | `list<string>` | —       | Command and arguments (each element supports template variables)      |
-| `extract` | `list<string>` | `[]`    | Optional JSON key path; when empty, stdout is parsed as a plain float |
-| `timeout` | `duration`     | default | Override `[defaults].timeout` for this source                         |
+| Key       | Type           | Default              | Description                                                            |
+| --------- | -------------- | -------------------- | ---------------------------------------------------------------------- |
+| `type`    | `string`       | required             | `"command"`                                                            |
+| `argv`    | `list<string>` | required             | Command and arguments (each element supports template variables)       |
+| `extract` | `list<string>` | `[]`                 | Optional JSON key path (when empty, stdout is parsed as a plain float) |
+| `timeout` | `duration`     | `[defaults].timeout` | Per-source timeout override                                            |
 
 #### `[cost_sources.behavior]`
 
-| Key          | Type       | Default | Description                                             |
-| ------------ | ---------- | ------- | ------------------------------------------------------- |
-| `show_block` | `bool`     | inherit | Override `[local].show_block` while this source matches |
-| `cache_ttl`  | `duration` | default | Override `[defaults].cache_ttl` for this source         |
-| `max_stale`  | `duration` | default | Override `[defaults].max_stale` for this source         |
+| Key          | Type       | Default                | Description                                                     |
+| ------------ | ---------- | ---------------------- | --------------------------------------------------------------- |
+| `show_block` | `bool`     | `[local].show_block`   | Per-source override for block display while this source matches |
+| `cache_ttl`  | `duration` | `[defaults].cache_ttl` | Per-source cache TTL override                                   |
+| `max_stale`  | `duration` | `[defaults].max_stale` | Per-source max stale age override                               |
 
-## Template Variables
+## Template variables
 
 Expanded in HTTP `url`, `query`, `headers`, and command `argv` using the local calendar day (`00:00:00` to `23:59:59` in the local timezone):
 
@@ -161,14 +161,14 @@ Expanded in HTTP `url`, `query`, `headers`, and command `argv` using the local c
 | `{end_utc}`      | `2026-11-26T23:59:59Z` | Local day end formatted in UTC   |
 | `{date}`         | `2026-11-26`           | Local date (`YYYY-MM-DD`)        |
 | `{date_compact}` | `20261126`             | Local date (`YYYYMMDD`)          |
-| `{start_unix}`   | `1795564800`           | Local day start as Unix seconds  |
-| `{end_unix}`     | `1795651199`           | Local day end as Unix seconds    |
+| `{start_unix}`   | `1795651200`           | Local day start as Unix seconds  |
+| `{end_unix}`     | `1795737599`           | Local day end as Unix seconds    |
 
 ## Examples
 
-### Compact Single-Row Layout (No Cost Queries)
+### Compact single-row layout
 
-Omitting `git`, `block`, and `today` avoids spawning `git` or `ccusage` altogether:
+Omitting `git`, `block`, and `today` skips spawning `git` and `ccusage`:
 
 ```toml
 [layout]
@@ -176,7 +176,7 @@ rows = [["dir", "model", "context", "session", "time"]]
 separators = [" · "]
 ```
 
-### Vim Mode and Session Cost
+### Vim mode and session cost
 
 ```toml
 [layout]
@@ -187,7 +187,7 @@ rows = [
 separator = " | "
 ```
 
-### Remote HTTP Billing Provider
+### Remote HTTP billing provider
 
 ```toml
 [[cost_sources]]
@@ -210,7 +210,7 @@ cache_ttl = "60s"
 max_stale = "15m"
 ```
 
-### External Command Provider
+### External command provider
 
 ```toml
 [local]
