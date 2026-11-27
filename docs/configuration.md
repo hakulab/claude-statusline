@@ -9,7 +9,7 @@ programs.claude-statusline = {
   enable = true;
   settings = {
     defaults.cache_ttl = "30s";
-    models."claude-opus-5-5" = "Opus 5.5";
+    layout.separator = " · ";
   };
 };
 ```
@@ -73,16 +73,15 @@ Configures the built-in local usage provider.
 
 ### `[models]`
 
-Maps raw model IDs (with any trailing `[1m]` suffix stripped) to short display names.
+Overrides display names for raw model IDs (with any trailing `[1m]` suffix stripped), such as models served through a proxy or custom endpoint. Standard Claude models use `model.display_name` from Claude Code automatically and need no entries here.
 
 ```toml
 [models]
-"claude-opus-5-5" = "Opus 5.5"
-"claude-sonnet-5-5" = "Sonnet 5.5"
-"claude-haiku-5-5" = "Haiku 5.5"
+"acme/reasoning-v2" = "Reasoning v2"
+"acme/fast-v1" = "Fast v1"
 ```
 
-When a model ID is absent from `[models]`, `claude-statusline` uses `model.display_name` (normalizing `(1M context)` to `(1M)`) or the last path segment of `model.id`. A `(1M)` suffix is appended when `context_window.context_window_size` ≥ 1,000,000 or the ID ends with `[1m]`, followed by `effort.level` when present.
+When a model ID is absent from `[models]`, `claude-statusline` uses `model.display_name` (normalizing `(1M context)` to `(1M)`) or, when `display_name` matches `model.id` or is omitted, the last path segment of `model.id`. A `(1M)` suffix is appended when `context_window.context_window_size` ≥ 1,000,000 or the ID ends with `[1m]`, followed by `effort.level` when present.
 
 ### `[[cost_sources]]`
 
